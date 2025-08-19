@@ -4,14 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a React Native Expo application called "Personal Coach" - a habit tracking application that currently provides todo list functionality with Firebase Firestore backend. The app is being developed to help users track daily habits and build consistent routines.
-
-### Project Scope
-- Add daily habits to track
-- Track habits for each day
-- View habit history
-- See streaks for habits
-- Edit/delete habits
+"Personal Coach" - A React Native Expo habit tracking application with Firebase Firestore backend. The app helps users build consistent routines by tracking daily habits, viewing streaks, and monitoring progress over time.
 
 ## Development Commands
 
@@ -61,16 +54,36 @@ npm run reset-project
 - Initialized with environment variables (EXPO_PUBLIC_FIREBASE_*)
 - Exports configured Firestore database instance
 
-#### Todo Service (`todoService.ts`)
-- CRUD operations for todos in Firestore
+#### Habit Service (`habitService.ts`)
+- CRUD operations for habits in Firestore
+- Collections: `habits`, `completions`
+- Key methods:
+  - `addHabit()`, `getHabits()`, `updateHabit()`, `deleteHabit()`
+  - `completeHabitForToday()`, `uncompleteHabitForToday()`
+  - `isHabitCompletedToday()`, `getHabitCompletions()`
+  - `getHabitStreak()` - Calculates consecutive day streaks
+
+#### Todo Service (`todoService.ts`) 
+- Legacy todo functionality (still present but replaced by habits)
 - Collection: `todos`
-- Methods: `addTodo()`, `getTodos()`, `toggleTodo()`, `deleteTodo()`
 - German error messages in console logs
+
+### Main Components
+
+#### HabitList (`components/HabitList.tsx`)
+- Main habit management interface
+- Features: Add/edit/delete habits, mark daily completion, view streaks
+- Modal-based forms for adding/editing habits
+- Long press for habit history
+
+#### HabitHistory (`components/HabitHistory.tsx`)
+- Calendar view of habit completion history
+- Visual representation of streaks and patterns
 
 ### Navigation Structure
 - Stack Navigator (root)
   - Tab Navigator
-    - Home Tab (`index.tsx`) - Contains TodoList component
+    - Habits Tab (`index.tsx`) - Contains HabitList component
     - Explore Tab (`explore.tsx`) - Example screen
   - Not Found Screen (`+not-found.tsx`)
 
