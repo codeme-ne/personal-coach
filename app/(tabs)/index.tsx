@@ -1,11 +1,11 @@
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { HelloWave } from '@/components/HelloWave';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { TodoList } from '@/components/TodoList';
+import { HabitList } from '@/components/HabitList';
 
 export default function HomeScreen() {
   return (
@@ -18,12 +18,12 @@ export default function HomeScreen() {
         />
       }>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Personal Coach</ThemedText>
+        <ThemedText type="title">Habit Tracker</ThemedText>
         <HelloWave />
       </ThemedView>
       
-      {/* ToDo-Liste Komponente */}
-      <TodoList />
+      {/* Habit List Component */}
+      <HabitList />
     </ParallaxScrollView>
   );
 }
