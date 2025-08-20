@@ -47,7 +47,7 @@ export function CustomTabBar({ state, descriptors, navigation, onAddPress }: Cus
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
               accessibilityLabel={options.tabBarAccessibilityLabel}
-              testID={options.tabBarTestID}
+              testID={options.tabBarAccessibilityLabel}
               onPress={onPress}
               style={styles.tab}
             >

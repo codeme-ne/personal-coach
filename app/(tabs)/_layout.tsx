@@ -1,20 +1,16 @@
 import { Tabs } from 'expo-router';
-import React, { useState } from 'react';
-import { Modal, View } from 'react-native';
+import React from 'react';
 
 import { CustomTabBar } from '@/components/CustomTabBar';
-import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-// Import the add habit modal from HabitList context
-import { HabitList } from '@/components/HabitList';
+// Global type extension for the showAddHabitModal function
+declare global {
+  var showAddHabitModal: (() => void) | undefined;
+}
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const [showAddHabitModal, setShowAddHabitModal] = useState(false);
-
-  // We'll need to pass this to HabitList through a context or prop
-  // For now, we'll use a global export from HabitList
 
   return (
     <Tabs
@@ -24,8 +20,8 @@ export default function TabLayout() {
           onAddPress={() => {
             // This will be connected to the add habit modal
             // We need to trigger the modal from HabitList
-            if (global.showAddHabitModal) {
-              global.showAddHabitModal();
+            if (globalThis.showAddHabitModal) {
+              globalThis.showAddHabitModal();
             }
           }}
         />

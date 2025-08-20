@@ -1,15 +1,18 @@
-import { StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, useColorScheme } from 'react-native';
 
+import { HabitList } from '@/components/HabitList';
 import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { HabitList } from '@/components/HabitList';
 
 export default function HomeScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+    >
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Habit Tracker</ThemedText>
         <HelloWave />
@@ -17,15 +20,25 @@ export default function HomeScreen() {
       
       {/* Habit List Component */}
       <HabitList />
-    </ParallaxScrollView>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F7F8F9', // Light gray background like in settings
+  },
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 40,
+  },
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 24,
+    marginBottom: 20,
+    backgroundColor: 'transparent',
   },
 });

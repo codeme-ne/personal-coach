@@ -1,21 +1,23 @@
-
-import React, { useState, useEffect } from 'react';
-import { 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
-  FlatList, 
-  Alert, 
-  Modal,
-  View,
-  Platform
-} from 'react-native';
-import { ThemedText } from './ThemedText';
-import { ThemedView } from './ThemedView';
-import { habitService, Habit } from '../habitService';
-import { HabitHistory } from './HabitHistory';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  Modal,
+  Platform,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { Habit, habitService } from '../habitService';
+import { HabitHistory } from './HabitHistory';
+import { ThemedText } from './ThemedText';
+import { ThemedView } from './ThemedView';
+import { Card } from './ui/Card';
+import { IconButton } from './ui/IconButton';
 
 interface HabitWithStreak extends Habit {
   streak: number;
@@ -165,7 +167,7 @@ export function HabitList() {
   };
 
   const renderHabit = ({ item }: { item: HabitWithStreak }) => (
-    <ThemedView style={styles.habitItem}>
+    <Card variant="default" style={styles.habitItem}>
       <TouchableOpacity
         style={styles.habitContent}
         onPress={() => toggleHabitCompletion(item)}
@@ -174,62 +176,51 @@ export function HabitList() {
           setShowHistoryModal(true);
         }}
       >
-        <ThemedView style={[
-          styles.checkbox,
-          item.completedToday && styles.checkboxCompleted,
-          { borderColor: '#000000' }
-        ]}>
-          {item.completedToday && <ThemedText style={styles.checkmark}>✓</ThemedText>}
-        </ThemedView>
+        {/* Light blue square icon */}
+        <View style={styles.iconSquare} />
         
-        <ThemedView style={styles.habitInfo}>
-          <ThemedText style={[styles.habitName, { color: '#000000' }]}>{item.name}</ThemedText>
-          <ThemedView style={styles.streakContainer}>
-            <ThemedText style={[styles.streakText, { color: '#000000' }]}>
-              {item.streak > 0 ? `🔥 ${item.streak} day streak` : 'No streak yet'}
-            </ThemedText>
-          </ThemedView>
-        </ThemedView>
+        <View style={styles.textContainer}>
+          <ThemedText style={styles.itemTitle}>{item.name}</ThemedText>
+          <ThemedText style={styles.itemDescription}>
+            {item.streak > 0 ? `${item.streak} day streak` : 'No streak yet'}
+          </ThemedText>
+        </View>
       </TouchableOpacity>
       
-      <ThemedView style={styles.actionButtons}>
-        <TouchableOpacity
-          style={styles.historyButton}
+      <View style={styles.actions}>
+        <IconButton
+          icon={<MaterialIcons name="bar-chart" size={20} color="#687076" />}
+          size="small"
           onPress={() => {
             setSelectedHabitForHistory(item);
             setShowHistoryModal(true);
           }}
-        >
-          <ThemedText style={styles.historyButtonText}>📊</ThemedText>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={styles.editButton}
+          accessibilityLabel="View habit statistics"
+        />
+        <IconButton
+          icon={<MaterialIcons name="edit" size={20} color="#687076" />}
+          size="small"
           onPress={() => editHabit(item)}
-        >
-          <ThemedText style={styles.editButtonText}>✏️</ThemedText>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={styles.deleteButton}
+          accessibilityLabel="Edit habit"
+        />
+        <IconButton
+          icon={<MaterialIcons name="delete" size={20} color="#687076" />}
+          size="small"
           onPress={() => deleteHabit(item.id!)}
-        >
-          <ThemedText style={styles.deleteButtonText}>🗑️</ThemedText>
-        </TouchableOpacity>
-      </ThemedView>
-    </ThemedView>
+          accessibilityLabel="Delete habit"
+        />
+      </View>
+    </Card>
   );
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedView style={styles.header}>
-        <ThemedText type="subtitle" style={[styles.title, { color: '#FFFFFF' }]}>My Habits</ThemedText>
-      </ThemedView>
+      {/* Removed the header with "My Habits" */}
 
       {/* Habit List */}
       {habits.length === 0 && !loading ? (
         <ThemedView style={styles.emptyContainer}>
-          <ThemedText style={[styles.emptyText, { color: '#000000' }]}>
+          <ThemedText style={styles.emptyText}>
             No habits yet. Add your first habit to get started!
           </ThemedText>
         </ThemedView>
@@ -350,17 +341,6 @@ export function HabitList() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
   },
   habitList: {
     flex: 1,
@@ -368,71 +348,45 @@ const styles = StyleSheet.create({
   habitItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 8,
     padding: 16,
-    marginBottom: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   habitContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  checkbox: {
-    width: 28,
-    height: 28,
-    borderWidth: 2,
-    borderRadius: 14,
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+  iconSquare: {
+    width: 36,
+    height: 36,
+    backgroundColor: '#E1F0FF',
+    borderRadius: 8,
+    marginRight: 16,
   },
-  checkboxCompleted: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
-  },
-  checkmark: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  habitInfo: {
+  textContainer: {
     flex: 1,
+    justifyContent: 'center',
   },
-  habitName: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
+  itemTitle: {
+    fontSize: 16,
+    fontWeight: '500',
   },
-  streakContainer: {
+  itemDescription: {
+    fontSize: 14,
+    color: '#687076',
+    marginTop: 2,
+  },
+  actions: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  streakText: {
-    fontSize: 14,
-    opacity: 0.7,
-  },
-  actionButtons: {
-    flexDirection: 'row',
     gap: 8,
-  },
-  historyButton: {
-    padding: 8,
-  },
-  historyButtonText: {
-    fontSize: 18,
-  },
-  editButton: {
-    padding: 8,
-  },
-  editButtonText: {
-    fontSize: 18,
-  },
-  deleteButton: {
-    padding: 8,
-  },
-  deleteButtonText: {
-    fontSize: 18,
   },
   emptyContainer: {
     flex: 1,
@@ -445,6 +399,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.6,
   },
+  
+  // Keep the rest of your styles for modals and other elements...
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
