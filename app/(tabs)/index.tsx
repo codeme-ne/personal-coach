@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { StyleSheet } from 'react-native';
 
 import { HelloWave } from '@/components/HelloWave';
@@ -10,13 +9,7 @@ import { HabitList } from '@/components/HabitList';
 export default function HomeScreen() {
   return (
     <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
+      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}>
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Habit Tracker</ThemedText>
         <HelloWave />
@@ -34,12 +27,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 24,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
   },
 });

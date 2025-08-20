@@ -2,21 +2,42 @@
 
 ## Scope
 
-- Be able to add a daily habit I want to track
-- Be able to track the habit for a day
-- Be able to view the history of that habit
-- See the streak for that habit
-- Be able to edit/delete habits
+- [x] Add a daily habit
+- [x] Track habit completion for the day
+- [x] View habit history
+- [x] See current streak
+- [ ] Edit / delete habits (UI wired; refine real todo deletion)
 
 ## Tech Stack
 
 - React Native
 - Expo
-- Typescript
+- TypeScript
 - Firebase
 
-## Advanced Features
+## Completed Milestones
 
-- Notifications
-- Add habits to different categories
-- Support different habit frequencies (daily, weekly, specific days)
+- Custom bottom navigation with FAB
+- Settings screen scaffold
+- Habit add modal + FAB trigger
+- UI / accessibility refinements
+- Workaround for Firestore index errors (client-side filtering)
+
+## Outstanding / Next Session
+
+- Fix real Firestore todo deletion (web + mobile)
+- Replace any test toggle with production data flow
+- Add proper Firestore composite indexes (restore efficient queries)
+- Verify Firestore security rules for delete
+- Add error + loading states for deletion
+- Remove global modal handler (introduce context/provider)
+- Write unit tests for habit & todo services
+
+## Issues / TODO
+
+- [ ] Reliable Firestore deletion of todos (web)
+- [ ] Reintroduce indexed queries after creating Firestore indexes
+- [ ] Improve state management (context or Zustand)
+- [ ] Audit accessibility (labels, roles)
+
+Good to know: Ich greife auf Expo übers Web zu.

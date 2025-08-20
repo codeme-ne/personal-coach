@@ -1,8 +1,8 @@
-import { collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 export interface Todo {
-  id?: string;
+  id: string;              // Make id required; every fetched todo has one
   text: string;
   completed: boolean;
   createdAt: Date;
@@ -30,14 +30,20 @@ export const todoService = {
     try {
       const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
-      
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt.toDate(),
-      })) as Todo[];
+
+      return querySnapshot.docs.map(d => {
+        const data: any = d.data();
+        const created = data?.createdAt && typeof data.createdAt.toDate === 'function'
+          ? data.createdAt.toDate()
+          : new Date(); // fallback if malformed
+        return {
+          ...data,              // spread first so we can safely override below
+          id: d.id,             // ensure the Firestore doc id wins
+          createdAt: created,
+        } as Todo;
+      });
     } catch (error) {
-      console.error('Fehler beim Abrufen der ToDos:', error);
+      console.error('Fehler beim Abrufen der ToDos (getTodos):', error);
       throw error;
     }
   },
@@ -56,10 +62,13 @@ export const todoService = {
   // ToDo löschen
   async deleteTodo(id: string): Promise<void> {
     try {
+      if (!id) {
+        throw new Error('Invalid todo id for deletion');
+      }
       await deleteDoc(doc(db, COLLECTION_NAME, id));
     } catch (error) {
-      console.error('Fehler beim Löschen des ToDos:', error);
+      console.error(`Fehler beim Löschen des ToDos (id=${id}):`, error);
       throw error;
     }
   },
-}; 
+};

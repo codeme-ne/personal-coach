@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
@@ -6,7 +7,8 @@ import {
   FlatList, 
   Alert, 
   Modal,
-  View
+  View,
+  Platform
 } from 'react-native';
 import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
@@ -33,6 +35,18 @@ export function HabitList() {
 
   useEffect(() => {
     loadHabits();
+    // Expose the modal trigger function globally for FAB access
+    (global as any).showAddHabitModal = () => {
+      setEditingHabit(null);
+      setNewHabitName('');
+      setNewHabitDescription('');
+      setShowAddModal(true);
+    };
+    
+    return () => {
+      // Cleanup on unmount
+      delete (global as any).showAddHabitModal;
+    };
   }, []);
 
   const loadHabits = async () => {
@@ -81,7 +95,12 @@ export function HabitList() {
       setNewHabitDescription('');
       setShowAddModal(false);
       setEditingHabit(null);
-      await loadHabits();
+      
+      // Clear habits first to force re-render, then reload with small delay
+      setHabits([]);
+      setTimeout(async () => {
+        await loadHabits();
+      }, 500);
     } catch (error) {
       Alert.alert('Error', editingHabit ? 'Could not update habit' : 'Could not add habit');
     } finally {
@@ -103,25 +122,39 @@ export function HabitList() {
   };
 
   const deleteHabit = async (id: string) => {
-    Alert.alert(
-      'Delete Habit',
-      'Are you sure you want to delete this habit? All history will be lost.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await habitService.deleteHabit(id);
-              await loadHabits();
-            } catch (error) {
-              Alert.alert('Error', 'Could not delete habit');
-            }
+    const performDelete = async () => {
+      try {
+        await habitService.deleteHabit(id);
+        await loadHabits();
+      } catch (error) {
+        const errorMessage = 'Could not delete habit';
+        if (Platform.OS === 'web') {
+          window.alert(errorMessage);
+        } else {
+          Alert.alert('Error', errorMessage);
+        }
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to delete this habit? All history will be lost.');
+      if (confirmed) {
+        await performDelete();
+      }
+    } else {
+      Alert.alert(
+        'Delete Habit',
+        'Are you sure you want to delete this habit? All history will be lost.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: performDelete,
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const editHabit = (habit: Habit) => {
@@ -144,15 +177,15 @@ export function HabitList() {
         <ThemedView style={[
           styles.checkbox,
           item.completedToday && styles.checkboxCompleted,
-          { borderColor: Colors[colorScheme ?? 'light'].text }
+          { borderColor: '#000000' }
         ]}>
           {item.completedToday && <ThemedText style={styles.checkmark}>✓</ThemedText>}
         </ThemedView>
         
         <ThemedView style={styles.habitInfo}>
-          <ThemedText style={styles.habitName}>{item.name}</ThemedText>
+          <ThemedText style={[styles.habitName, { color: '#000000' }]}>{item.name}</ThemedText>
           <ThemedView style={styles.streakContainer}>
-            <ThemedText style={styles.streakText}>
+            <ThemedText style={[styles.streakText, { color: '#000000' }]}>
               {item.streak > 0 ? `🔥 ${item.streak} day streak` : 'No streak yet'}
             </ThemedText>
           </ThemedView>
@@ -190,29 +223,13 @@ export function HabitList() {
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
-        <ThemedText type="subtitle" style={styles.title}>My Habits</ThemedText>
-        
-        <TouchableOpacity
-          style={[
-            styles.addButton,
-            { backgroundColor: Colors[colorScheme ?? 'light'].tint }
-          ]}
-          onPress={() => {
-            setEditingHabit(null);
-            setNewHabitName('');
-            setNewHabitDescription('');
-            setShowAddModal(true);
-          }}
-          disabled={loading}
-        >
-          <ThemedText style={styles.addButtonText}>+ Add Habit</ThemedText>
-        </TouchableOpacity>
+        <ThemedText type="subtitle" style={[styles.title, { color: '#FFFFFF' }]}>My Habits</ThemedText>
       </ThemedView>
 
       {/* Habit List */}
       {habits.length === 0 && !loading ? (
         <ThemedView style={styles.emptyContainer}>
-          <ThemedText style={styles.emptyText}>
+          <ThemedText style={[styles.emptyText, { color: '#000000' }]}>
             No habits yet. Add your first habit to get started!
           </ThemedText>
         </ThemedView>
@@ -237,7 +254,7 @@ export function HabitList() {
       >
         <View style={styles.modalOverlay}>
           <ThemedView style={styles.modalContent}>
-            <ThemedText type="subtitle" style={styles.modalTitle}>
+            <ThemedText type="subtitle" style={[styles.modalTitle, { color: '#000000' }]}>
               {editingHabit ? 'Edit Habit' : 'Add New Habit'}
             </ThemedText>
             
@@ -245,15 +262,21 @@ export function HabitList() {
               style={[
                 styles.input,
                 { 
-                  borderColor: Colors[colorScheme ?? 'light'].text,
-                  color: Colors[colorScheme ?? 'light'].text
+                  borderColor: '#000000',
+                  color: '#000000'
                 }
               ]}
+              id="habit-name-input"
+              nativeID="habit-name-input"
+              accessibilityLabel="Habit name"
+              accessibilityHint="Enter the name of the habit you want to track"
               placeholder="Habit name (e.g., Exercise, Read, Meditate)"
-              placeholderTextColor={Colors[colorScheme ?? 'light'].text + '80'}
+              placeholderTextColor="#00000080"
               value={newHabitName}
               onChangeText={setNewHabitName}
               autoFocus
+              autoComplete="off"
+              textContentType="none"
             />
             
             <TextInput
@@ -261,16 +284,22 @@ export function HabitList() {
                 styles.input,
                 styles.descriptionInput,
                 { 
-                  borderColor: Colors[colorScheme ?? 'light'].text,
-                  color: Colors[colorScheme ?? 'light'].text
+                  borderColor: '#000000',
+                  color: '#000000'
                 }
               ]}
+              id="habit-description-input"
+              nativeID="habit-description-input"
+              accessibilityLabel="Habit description"
+              accessibilityHint="Optional description to provide more details about your habit"
               placeholder="Description (optional)"
-              placeholderTextColor={Colors[colorScheme ?? 'light'].text + '80'}
+              placeholderTextColor="#00000080"
               value={newHabitDescription}
               onChangeText={setNewHabitDescription}
               multiline
               numberOfLines={3}
+              autoComplete="off"
+              textContentType="none"
             />
             
             <ThemedView style={styles.modalButtons}>
@@ -283,7 +312,7 @@ export function HabitList() {
                   setNewHabitDescription('');
                 }}
               >
-                <ThemedText>Cancel</ThemedText>
+                <ThemedText style={{ color: '#000000' }}>Cancel</ThemedText>
               </TouchableOpacity>
               
               <TouchableOpacity
@@ -325,21 +354,12 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-  },
-  addButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  addButtonText: {
-    color: 'white',
     fontWeight: 'bold',
   },
   habitList: {
@@ -458,16 +478,26 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 16,
+    marginTop: 8,
   },
   modalButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   cancelButton: {
-    backgroundColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: '#E5E5E5',
+    borderWidth: 1,
+    borderColor: '#D0D0D0',
   },
   saveButton: {
     // backgroundColor set dynamically

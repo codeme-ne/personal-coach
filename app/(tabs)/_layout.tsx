@@ -1,45 +1,51 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
+import React, { useState } from 'react';
+import { Modal, View } from 'react-native';
 
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
+import { CustomTabBar } from '@/components/CustomTabBar';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
+// Import the add habit modal from HabitList context
+import { HabitList } from '@/components/HabitList';
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const [showAddHabitModal, setShowAddHabitModal] = useState(false);
+
+  // We'll need to pass this to HabitList through a context or prop
+  // For now, we'll use a global export from HabitList
 
   return (
     <Tabs
+      tabBar={(props) => (
+        <CustomTabBar 
+          {...props} 
+          onAddPress={() => {
+            // This will be connected to the add habit modal
+            // We need to trigger the modal from HabitList
+            if (global.showAddHabitModal) {
+              global.showAddHabitModal();
+            }
+          }}
+        />
+      )}
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Habits',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="checkmark.circle.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="settings"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Settings',
         }}
       />
+      {/* Remove explore tab */}
     </Tabs>
   );
 }

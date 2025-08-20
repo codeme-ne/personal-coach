@@ -11,6 +11,19 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 
+/**
+ * === Firebase Query Optimization ===
+ * 
+ * This service uses optimized queries to avoid Firestore composite index requirements.
+ * Key optimizations:
+ * 1. Single-field queries only (habitId) to avoid composite indexes
+ * 2. Client-side filtering for date ranges instead of server-side where clauses
+ * 3. Client-side sorting instead of orderBy with where clauses
+ * 
+ * This approach works immediately without requiring manual index creation in Firebase Console.
+ * Trade-off: Slightly more client-side processing, but eliminates deployment complexity.
+ */
+
 // Data Models
 export interface Habit {
   id?: string;
@@ -178,19 +191,23 @@ export const habitService = {
       const today = getStartOfDay(new Date());
       const tomorrow = getEndOfDay(new Date());
       
-      // Find today's completion
+      // Query only by habitId to avoid composite index requirement
       const q = query(
         collection(db, 'completions'),
-        where('habitId', '==', habitId),
-        where('completedAt', '>=', today),
-        where('completedAt', '<=', tomorrow)
+        where('habitId', '==', habitId)
       );
       
       const querySnapshot = await getDocs(q);
       
+      // Filter and delete today's completion(s) client-side
+      const todayDocs = querySnapshot.docs.filter(docSnapshot => {
+        const completedAt = docSnapshot.data().completedAt.toDate();
+        return completedAt >= today && completedAt <= tomorrow;
+      });
+      
       // Delete today's completion(s)
-      for (const doc of querySnapshot.docs) {
-        await deleteDoc(doc.ref);
+      for (const docSnapshot of todayDocs) {
+        await deleteDoc(docSnapshot.ref);
       }
       
       // Update last completed date on habit (find the previous completion)
@@ -227,15 +244,21 @@ export const habitService = {
       const today = getStartOfDay(new Date());
       const tomorrow = getEndOfDay(new Date());
       
+      // Query only by habitId to avoid composite index requirement
       const q = query(
         collection(db, 'completions'),
-        where('habitId', '==', habitId),
-        where('completedAt', '>=', today),
-        where('completedAt', '<=', tomorrow)
+        where('habitId', '==', habitId)
       );
       
       const querySnapshot = await getDocs(q);
-      return !querySnapshot.empty;
+      
+      // Filter client-side for today's completions
+      const todayCompletions = querySnapshot.docs.some(doc => {
+        const completedAt = doc.data().completedAt.toDate();
+        return completedAt >= today && completedAt <= tomorrow;
+      });
+      
+      return todayCompletions;
     } catch (error) {
       console.error('Error checking habit completion:', error);
       throw error;
@@ -245,19 +268,22 @@ export const habitService = {
   // Get all completions for a habit
   async getHabitCompletions(habitId: string): Promise<HabitCompletion[]> {
     try {
+      // Query only by habitId to avoid composite index requirement
       const q = query(
         collection(db, 'completions'),
-        where('habitId', '==', habitId),
-        orderBy('completedAt', 'desc')
+        where('habitId', '==', habitId)
       );
       
       const querySnapshot = await getDocs(q);
       
-      return querySnapshot.docs.map(doc => ({
+      const completions = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         completedAt: doc.data().completedAt.toDate(),
       })) as HabitCompletion[];
+      
+      // Sort client-side instead of using orderBy in query
+      return completions.sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime());
     } catch (error) {
       console.error('Error fetching habit completions:', error);
       throw error;
