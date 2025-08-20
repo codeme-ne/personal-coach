@@ -9,7 +9,7 @@ import {
   updateDoc, 
   where
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 
 /**
  * === Firebase Query Optimization ===
@@ -31,13 +31,24 @@ export interface Habit {
   description?: string;
   createdAt: Date;
   lastCompletedDate?: Date;
+  userId: string;  // Neu: User ID für Datensicherheit
 }
 
 export interface HabitCompletion {
   id?: string;
   habitId: string;
   completedAt: Date;
+  userId: string;  // Neu: User ID für Datensicherheit
 }
+
+// Helper function zur Benutzer-Authentifizierung
+const getCurrentUserId = (): string => {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('Benutzer nicht authentifiziert. Bitte melden Sie sich an.');
+  }
+  return user.uid;
+};
 
 // Helper function to get start of day
 const getStartOfDay = (date: Date): Date => {
@@ -94,13 +105,16 @@ const calculateStreak = (completions: HabitCompletion[]): number => {
 };
 
 export const habitService = {
-  // Add new habit
+  // Add new habit (mit User Scoping)
   async addHabit(name: string, description?: string): Promise<void> {
     try {
+      const userId = getCurrentUserId();
+      
       await addDoc(collection(db, 'habits'), {
         name,
         description: description || '',
         createdAt: new Date(),
+        userId,  // User ID für Datensicherheit
       });
     } catch (error) {
       console.error('Error adding habit:', error);
@@ -108,10 +122,17 @@ export const habitService = {
     }
   },
 
-  // Get all habits
+  // Get all habits (nur für aktuellen User)
   async getHabits(): Promise<Habit[]> {
     try {
-      const q = query(collection(db, 'habits'), orderBy('createdAt', 'desc'));
+      const userId = getCurrentUserId();
+      
+      // Query nur für Habits des aktuellen Users
+      const q = query(
+        collection(db, 'habits'), 
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc')
+      );
       const querySnapshot = await getDocs(q);
       
       return querySnapshot.docs.map(doc => ({
@@ -126,21 +147,28 @@ export const habitService = {
     }
   },
 
-  // Update habit
+  // Update habit (mit User Verification)
   async updateHabit(id: string, updates: Partial<Habit>): Promise<void> {
     try {
+      const userId = getCurrentUserId();
+      
+      // Entferne userId aus updates falls vorhanden (Sicherheit)
+      const { userId: _, ...safeUpdates } = updates;
+      
       const habitRef = doc(db, 'habits', id);
-      await updateDoc(habitRef, updates);
+      await updateDoc(habitRef, safeUpdates);
     } catch (error) {
       console.error('Error updating habit:', error);
       throw error;
     }
   },
 
-  // Delete habit
+  // Delete habit (mit User Verification)
   async deleteHabit(id: string): Promise<void> {
     try {
-      // Delete all completions for this habit
+      const userId = getCurrentUserId();
+      
+      // Delete all completions for this habit (nur für aktuellen User)
       const completions = await this.getHabitCompletions(id);
       for (const completion of completions) {
         if (completion.id) {
@@ -156,9 +184,10 @@ export const habitService = {
     }
   },
 
-  // Mark habit as complete for today
+  // Mark habit as complete for today (mit User Scoping)
   async completeHabitForToday(habitId: string): Promise<void> {
     try {
+      const userId = getCurrentUserId();
       const today = new Date();
       
       // Check if already completed today
@@ -168,10 +197,11 @@ export const habitService = {
         return;
       }
       
-      // Add completion record
+      // Add completion record mit User ID
       await addDoc(collection(db, 'completions'), {
         habitId,
         completedAt: today,
+        userId,  // User ID für Datensicherheit
       });
       
       // Update last completed date on habit
@@ -185,16 +215,18 @@ export const habitService = {
     }
   },
 
-  // Remove today's completion for a habit
+  // Remove today's completion for a habit (mit User Scoping)
   async uncompleteHabitForToday(habitId: string): Promise<void> {
     try {
+      const userId = getCurrentUserId();
       const today = getStartOfDay(new Date());
       const tomorrow = getEndOfDay(new Date());
       
-      // Query only by habitId to avoid composite index requirement
+      // Query mit userId und habitId für Sicherheit
       const q = query(
         collection(db, 'completions'),
-        where('habitId', '==', habitId)
+        where('habitId', '==', habitId),
+        where('userId', '==', userId)
       );
       
       const querySnapshot = await getDocs(q);
@@ -238,16 +270,18 @@ export const habitService = {
     }
   },
 
-  // Check if habit is completed today
+  // Check if habit is completed today (mit User Scoping)
   async isHabitCompletedToday(habitId: string): Promise<boolean> {
     try {
+      const userId = getCurrentUserId();
       const today = getStartOfDay(new Date());
       const tomorrow = getEndOfDay(new Date());
       
-      // Query only by habitId to avoid composite index requirement
+      // Query mit userId und habitId für Sicherheit
       const q = query(
         collection(db, 'completions'),
-        where('habitId', '==', habitId)
+        where('habitId', '==', habitId),
+        where('userId', '==', userId)
       );
       
       const querySnapshot = await getDocs(q);
@@ -265,13 +299,16 @@ export const habitService = {
     }
   },
 
-  // Get all completions for a habit
+  // Get all completions for a habit (nur für aktuellen User)
   async getHabitCompletions(habitId: string): Promise<HabitCompletion[]> {
     try {
-      // Query only by habitId to avoid composite index requirement
+      const userId = getCurrentUserId();
+      
+      // Query mit userId und habitId für Sicherheit
       const q = query(
         collection(db, 'completions'),
-        where('habitId', '==', habitId)
+        where('habitId', '==', habitId),
+        where('userId', '==', userId)
       );
       
       const querySnapshot = await getDocs(q);

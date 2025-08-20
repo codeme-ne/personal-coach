@@ -1,6 +1,10 @@
-// utils/firebase.ts
+// === Firebase Configuration ===
+// Zweck: Initialisiert Firebase App mit Auth und Firestore
+// Exports: app (Firebase App), db (Firestore), auth (Authentication)
+
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
     apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -12,11 +16,12 @@ const firebaseConfig = {
     measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
   };
 
-  // Initialize Firebase
+// Firebase App Initialisierung
 const app = initializeApp(firebaseConfig);
 
-// Firestore Database
-export const db = getFirestore(app);
+// Firebase Services Export
+export const db = getFirestore(app);  // Firestore Database für Habits/Completions
+export const auth = getAuth(app);     // Authentication Service für User Management
 
 
 

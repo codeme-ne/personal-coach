@@ -84,7 +84,7 @@ npm run reset-project
 - Stack Navigator (root)
   - Tab Navigator
     - Habits Tab (`index.tsx`) - Contains HabitList component
-    - Explore Tab (`explore.tsx`) - Example screen
+    - Settings Tab (`settings.tsx`) - App configuration
   - Not Found Screen (`+not-found.tsx`)
 
 ### Theming System
@@ -111,3 +111,63 @@ Required Firebase configuration in `.env` or Expo environment:
 ## ESLint Configuration
 - Uses `eslint-config-expo/flat`
 - Ignores `dist/*` directory
+
+## Recent Changes & Fixes (Aug 2025)
+
+### Fixed Issues
+1. **Habit Deletion on Web Platform**
+   - **Problem**: `Alert.alert()` doesn't work properly on web browsers
+   - **Solution**: Use `Platform.OS === 'web'` check with `window.confirm()` for web, keep `Alert.alert()` for mobile
+   - **Location**: `components/HabitList.tsx` deleteHabit function
+   - **Pattern**: Same approach used in TodoList for web compatibility
+
+2. **TodoList Component Cleanup** 
+   - Removed TodoList import and component from settings.tsx
+   - Cleaned up todo-related state and UI elements
+   - App now focuses purely on habit tracking
+
+### Technical Learnings
+- **Web Compatibility**: React Native Alert components need platform-specific handling for web
+- **Firebase Integration**: Habit deletion properly cascades to remove all completion records
+- **UI Patterns**: Confirmation dialogs should use native browser dialogs on web for better UX
+
+### Current State
+- ✅ Habit CRUD operations working (add, edit, delete, toggle completion)
+- ✅ Firebase Firestore integration functional
+- ✅ Streak calculation and history tracking
+- ✅ Web platform compatibility for all core features
+- ✅ Settings screen with app preferences
+
+### Outstanding Tasks (from README.md)
+- "Outstanding / Next Session" section is currently empty
+- All major issues have been resolved
+
+## Firebase Authentication (Aug 2025)
+
+### ✅ Tested & Working (Web Only)
+- Register/login UI works
+- Logout functionality works  
+- Settings shows user profile with password change option
+
+### ❓ Not Yet Tested
+- Password reset emails (email service not configured)
+- User data isolation (habits scoped to userId)
+- Cross-platform auth (iOS/Android)
+- Firestore security rules enforcement
+
+### 🔧 Key Files Added
+- `authService.ts` - Firebase auth methods
+- `contexts/AuthContext.tsx` - Global auth state
+- `app/auth/*` - Login/register/reset screens
+- `habitService.ts` - Updated with userId scoping
+- `firestore.rules` - Database security rules
+
+### ⚠️ Critical Next Steps
+- **Deploy rules**: `npm run firebase:rules` (data security not enforced yet)
+- **Test data isolation**: Create 2 accounts, verify habits don't cross over
+- **Email setup**: Configure Firebase email service for password reset
+
+### 🚨 Known Issues
+- **Firebase CLI**: Use v13.15.4 for Node.js 18
+- **Platform dialogs**: `Platform.OS === 'web'` ? `window.confirm()` : `Alert.alert()`
+- Existing habits need userId field migration

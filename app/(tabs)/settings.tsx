@@ -1,15 +1,60 @@
-import { StyleSheet, ScrollView, TouchableOpacity, View, Switch } from 'react-native';
+// === Settings Screen ===
+// Zweck: App Einstellungen mit User Profile Management
+// Features: User info, Sign out, preferences, habits config
+
+import { StyleSheet, ScrollView, TouchableOpacity, View, Switch, Alert, Platform, ActivityIndicator } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useState } from 'react';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
+  const { user, signOut, isLoading } = useAuth();
+  
+  // State für Settings
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [darkModeEnabled, setDarkModeEnabled] = useState(colorScheme === 'dark');
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  // Sign Out Functionality
+  const handleSignOut = async () => {
+    const confirmSignOut = () => {
+      if (Platform.OS === 'web') {
+        return window.confirm('Möchten Sie sich wirklich abmelden?');
+      } else {
+        return new Promise((resolve) => {
+          Alert.alert(
+            'Abmelden',
+            'Möchten Sie sich wirklich abmelden?',
+            [
+              { text: 'Abbrechen', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Abmelden', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
+      }
+    };
+
+    const confirmed = await confirmSignOut();
+    if (!confirmed) return;
+
+    setIsSigningOut(true);
+    try {
+      const result = await signOut();
+      if (!result.success) {
+        console.error('Sign out failed:', result.error);
+        // Error wird automatisch durch AuthGuard gehandelt
+      }
+    } catch (error) {
+      console.error('Sign out error:', error);
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   const SettingItem = ({ 
     icon, 
@@ -61,6 +106,57 @@ export default function SettingsScreen() {
       <ThemedView style={styles.header}>
         <ThemedText type="title" style={styles.title}>Settings</ThemedText>
       </ThemedView>
+
+      {/* User Profile Section */}
+      <SettingSection title="ACCOUNT">
+        <View style={styles.userProfileContainer}>
+          <View style={styles.userAvatarContainer}>
+            <IconSymbol 
+              name="person.circle.fill" 
+              size={50} 
+              color={Colors[colorScheme ?? 'light'].tint} 
+            />
+          </View>
+          <View style={styles.userInfoContainer}>
+            <ThemedText style={styles.userEmail}>
+              {user?.email || 'Nicht angemeldet'}
+            </ThemedText>
+            <ThemedText style={styles.userDisplayName}>
+              {user?.displayName || 'Kein Name festgelegt'}
+            </ThemedText>
+            {user?.emailVerified === false && (
+              <ThemedText style={styles.emailNotVerified}>
+                E-Mail nicht verifiziert
+              </ThemedText>
+            )}
+          </View>
+        </View>
+        <View style={styles.separator} />
+        <TouchableOpacity
+          style={[styles.settingItem, isSigningOut && styles.disabledItem]}
+          onPress={handleSignOut}
+          disabled={isSigningOut || isLoading}
+          activeOpacity={0.7}
+        >
+          <View style={styles.settingItemLeft}>
+            <View style={[styles.iconContainer, { backgroundColor: '#FF3B30' + '20' }]}>
+              {isSigningOut ? (
+                <ActivityIndicator size="small" color="#FF3B30" />
+              ) : (
+                <IconSymbol name="arrow.right.square" size={24} color="#FF3B30" />
+              )}
+            </View>
+            <View style={styles.settingTextContainer}>
+              <ThemedText style={[styles.settingTitle, { color: '#FF3B30' }]}>
+                {isSigningOut ? 'Wird abgemeldet...' : 'Abmelden'}
+              </ThemedText>
+              <ThemedText style={styles.settingSubtitle}>
+                Von diesem Gerät abmelden
+              </ThemedText>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </SettingSection>
 
       <SettingSection title="PREFERENCES">
         <SettingItem
@@ -255,5 +351,37 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#8E8E93',
     textAlign: 'center',
+  },
+  // User Profile Styles
+  userProfileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  userAvatarContainer: {
+    marginRight: 16,
+  },
+  userInfoContainer: {
+    flex: 1,
+  },
+  userEmail: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 4,
+  },
+  userDisplayName: {
+    fontSize: 14,
+    color: '#8E8E93',
+    marginBottom: 2,
+  },
+  emailNotVerified: {
+    fontSize: 12,
+    color: '#FF9500',
+    fontWeight: '500',
+  },
+  disabledItem: {
+    opacity: 0.6,
   },
 });
