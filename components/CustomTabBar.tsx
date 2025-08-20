@@ -1,10 +1,9 @@
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { IconSymbol } from './ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from './ThemedText';
+import { IconSymbol } from './ui/IconSymbol';
 
 interface CustomTabBarProps extends BottomTabBarProps {
   onAddPress: () => void;
@@ -111,8 +110,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 14,
     marginTop: 2,
+    fontWeight: '500',
   },
   fab: {
     position: 'absolute',

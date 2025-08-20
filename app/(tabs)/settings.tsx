@@ -2,14 +2,14 @@
 // Zweck: App Einstellungen mit User Profile Management
 // Features: User info, Sign out, preferences, habits config
 
-import { StyleSheet, ScrollView, TouchableOpacity, View, Switch, Alert, Platform, ActivityIndicator } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
+import { useAuth } from '@/hooks/useAuth';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useState } from 'react';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useAuth } from '@/hooks/useAuth';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();

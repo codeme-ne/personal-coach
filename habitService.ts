@@ -1,15 +1,15 @@
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  query, 
-  orderBy, 
-  deleteDoc, 
-  doc, 
-  updateDoc, 
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  updateDoc,
   where
 } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { auth, db } from './config/firebase';
 
 /**
  * === Firebase Query Optimization ===
@@ -335,6 +335,53 @@ export const habitService = {
     } catch (error) {
       console.error('Error calculating streak:', error);
       return 0;
+    }
+  },
+
+  // Get today's completed habits with their names
+  async getTodayCompletedHabits(): Promise<{habit: Habit, completion: HabitCompletion}[]> {
+    try {
+      const userId = getCurrentUserId();
+      const today = getStartOfDay(new Date());
+      const tomorrow = getEndOfDay(new Date());
+      
+      // Get all habits for the user
+      const habits = await this.getHabits();
+      
+      // Get all completions for today
+      const q = query(
+        collection(db, 'completions'),
+        where('userId', '==', userId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      // Filter for today's completions client-side
+      const todayCompletions = querySnapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          completedAt: doc.data().completedAt.toDate(),
+        }) as HabitCompletion)
+        .filter(completion => 
+          completion.completedAt >= today && completion.completedAt <= tomorrow
+        );
+      
+      // Match completions with habits
+      const completedHabits = todayCompletions
+        .map(completion => {
+          const habit = habits.find(h => h.id === completion.habitId);
+          return habit ? { habit, completion } : null;
+        })
+        .filter(item => item !== null) as {habit: Habit, completion: HabitCompletion}[];
+      
+      // Sort by completion time (most recent first)
+      return completedHabits.sort((a, b) => 
+        b.completion.completedAt.getTime() - a.completion.completedAt.getTime()
+      );
+    } catch (error) {
+      console.error('Error fetching today\'s completed habits:', error);
+      return [];
     }
   },
 };

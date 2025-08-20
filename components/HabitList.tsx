@@ -1,6 +1,7 @@
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -13,7 +14,7 @@ import {
   View
 } from 'react-native';
 import { Habit, habitService } from '../habitService';
-import { HabitHistory } from './HabitHistory';
+import { HabitStreakModal } from './HabitStreakModal';
 import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
 import { Card } from './ui/Card';
@@ -31,12 +32,31 @@ export function HabitList() {
   const [newHabitDescription, setNewHabitDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
-  const [selectedHabitForHistory, setSelectedHabitForHistory] = useState<Habit | null>(null);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedHabitForStreak, setSelectedHabitForStreak] = useState<Habit | null>(null);
+  const [showStreakModal, setShowStreakModal] = useState(false);
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    loadHabits();
+    const initializeApp = async () => {
+      // Check if we need to reset habits (new day)
+      try {
+        const today = new Date().toDateString();
+        const lastResetDate = await AsyncStorage.getItem('lastResetDate');
+        
+        if (lastResetDate !== today) {
+          // It's a new day, refresh the habits to update completion status
+          await AsyncStorage.setItem('lastResetDate', today);
+        }
+      } catch (resetError) {
+        console.log('Reset check failed:', resetError);
+      }
+      
+      // Load habits after reset check
+      loadHabits();
+    };
+    
+    initializeApp();
+    
     // Expose the modal trigger function globally for FAB access
     (global as any).showAddHabitModal = () => {
       setEditingHabit(null);
@@ -111,12 +131,13 @@ export function HabitList() {
   };
 
   const toggleHabitCompletion = async (habit: HabitWithStreak) => {
+    // Verhindere das Zurücksetzen von bereits abgehakten Gewohnheiten
+    if (habit.completedToday) {
+      return;
+    }
+    
     try {
-      if (habit.completedToday) {
-        await habitService.uncompleteHabitForToday(habit.id!);
-      } else {
-        await habitService.completeHabitForToday(habit.id!);
-      }
+      await habitService.completeHabitForToday(habit.id!);
       await loadHabits();
     } catch (error) {
       Alert.alert('Error', 'Could not update habit');
@@ -168,32 +189,62 @@ export function HabitList() {
 
   const renderHabit = ({ item }: { item: HabitWithStreak }) => (
     <Card variant="default" style={styles.habitItem}>
-      <TouchableOpacity
-        style={styles.habitContent}
-        onPress={() => toggleHabitCompletion(item)}
-        onLongPress={() => {
-          setSelectedHabitForHistory(item);
-          setShowHistoryModal(true);
-        }}
-      >
-        {/* Light blue square icon */}
-        <View style={styles.iconSquare} />
+        <TouchableOpacity
+          style={styles.habitContent}
+          onPress={() => toggleHabitCompletion(item)}
+        >
+          {/* Checkmark or square icon based on completion status */}
+          <View style={[
+            styles.iconSquare, 
+            item.completedToday && styles.completedIconSquare
+          ]}>
+            {item.completedToday && (
+              <MaterialIcons name="check" size={24} color="white" />
+            )}
+          </View>
+          
+          <View style={styles.textContainer}>
+            <ThemedText style={[
+              styles.itemTitle,
+              item.completedToday && styles.completedItemTitle
+            ]}>
+              {item.name}
+            </ThemedText>
+            <View style={styles.streakContainer}>
+              <ThemedText style={[
+                styles.itemDescription,
+                item.completedToday && styles.completedItemDescription
+              ]}>
+                {item.completedToday 
+                  ? `✓ Completed today • `
+                  : ''
+                }
+              </ThemedText>
+              {item.streak > 0 && (
+                <View style={styles.streakBadge}>
+                  <MaterialIcons name="local-fire-department" size={16} color="#FF6B35" />
+                  <ThemedText style={styles.streakText}>{item.streak}</ThemedText>
+                </View>
+              )}
+              {item.streak === 0 && (
+                <ThemedText style={[
+                  styles.itemDescription,
+                  item.completedToday && styles.completedItemDescription
+                ]}>
+                  No streak yet
+                </ThemedText>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
         
-        <View style={styles.textContainer}>
-          <ThemedText style={styles.itemTitle}>{item.name}</ThemedText>
-          <ThemedText style={styles.itemDescription}>
-            {item.streak > 0 ? `${item.streak} day streak` : 'No streak yet'}
-          </ThemedText>
-        </View>
-      </TouchableOpacity>
-      
-      <View style={styles.actions}>
+        <View style={styles.actions}>
         <IconButton
           icon={<MaterialIcons name="bar-chart" size={20} color="#687076" />}
           size="small"
           onPress={() => {
-            setSelectedHabitForHistory(item);
-            setShowHistoryModal(true);
+            setSelectedHabitForStreak(item);
+            setShowStreakModal(true);
           }}
           accessibilityLabel="View habit statistics"
         />
@@ -324,15 +375,15 @@ export function HabitList() {
         </View>
       </Modal>
 
-      {/* Habit History Modal */}
-      <HabitHistory
-        habit={selectedHabitForHistory}
-        visible={showHistoryModal}
+      {/* Habit Streak Modal */}
+      <HabitStreakModal
+        visible={showStreakModal}
         onClose={() => {
-          setShowHistoryModal(false);
-          setSelectedHabitForHistory(null);
-          loadHabits(); // Refresh data when closing history
+          setShowStreakModal(false);
+          setSelectedHabitForStreak(null);
         }}
+        habitId={selectedHabitForStreak?.id || ''}
+        habitName={selectedHabitForStreak?.name || ''}
       />
     </ThemedView>
   );
@@ -369,19 +420,53 @@ const styles = StyleSheet.create({
     backgroundColor: '#E1F0FF',
     borderRadius: 8,
     marginRight: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  completedIconSquare: {
+    backgroundColor: '#34C759', // Green background for completed habits
   },
   textContainer: {
     flex: 1,
     justifyContent: 'center',
   },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: 2,
+  },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F5',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 4,
+  },
+  streakText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF6B35',
+    marginLeft: 2,
+  },
   itemTitle: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  completedItemTitle: {
+    color: '#34C759',
+    fontWeight: '600',
   },
   itemDescription: {
     fontSize: 14,
     color: '#687076',
     marginTop: 2,
+  },
+  completedItemDescription: {
+    color: '#34C759',
+    fontWeight: '500',
   },
   actions: {
     flexDirection: 'row',

@@ -27,5 +27,7 @@
 ## Issues / TODO
 
 - [x] Reliable Firestore deletion of todos (web)
+- [] delete CompletedHabitsToday (`components/CompletedHabitsToday.tsx`) not needed anymore
+- 
 
 Good to know: Ich greife auf Expo übers Web zu.

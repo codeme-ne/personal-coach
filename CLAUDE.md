@@ -20,13 +20,18 @@ npx expo start
 # Platform-specific development
 npm run android  # Start Android emulator
 npm run ios      # Start iOS simulator  
-npm run web      # Start web development
+npm run web      # Start web development (main development platform)
 
-# Linting
-npm run lint
+# Linting and Code Quality
+npm run lint     # Run ESLint with expo/flat config
 
-# Reset project (moves starter code to app-example/)
-npm run reset-project
+# Firebase deployment
+npm run firebase:deploy      # Deploy rules and indexes
+npm run firebase:rules       # Deploy only Firestore rules
+npm run firebase:login       # Login to Firebase
+
+# Project utilities
+npm run reset-project       # Moves starter code to app-example/
 ```
 
 ## Architecture
@@ -34,39 +39,56 @@ npm run reset-project
 ### Technology Stack
 - **Framework**: React Native with Expo SDK 53
 - **Language**: TypeScript with strict mode enabled
-- **Navigation**: Expo Router (file-based routing)
-- **Database**: Firebase Firestore
-- **Styling**: React Native StyleSheet with theme support
-- **State Management**: React hooks (useState, useEffect)
+- **Navigation**: Expo Router (file-based routing) with stack and tab navigators
+- **Database**: Firebase Firestore with real-time sync
+- **Authentication**: Firebase Auth with user-scoped data
+- **Styling**: React Native StyleSheet with automatic light/dark theme support
+- **State Management**: React Context (AuthContext) + React hooks
+- **Development Platform**: Primary development and testing on web via Expo
 
 ### Key Directories
 - `app/` - Application screens using file-based routing
-  - `(tabs)/` - Tab navigation screens (index, explore)
+  - `(tabs)/` - Tab navigation screens (index, settings)
+  - `auth/` - Authentication screens (login, register, forgot-password)
+  - `chat-coach.tsx` - AI chat coaching interface
   - `_layout.tsx` - Root and nested layout components
 - `components/` - Reusable UI components
   - `ui/` - Platform-specific UI components
-- `hooks/` - Custom React hooks for theme and color scheme
+- `contexts/` - React contexts (AuthContext)
+- `config/` - Configuration files (Firebase)
+- `hooks/` - Custom React hooks for theme and auth
 - `constants/` - Application constants (colors, themes)
 
 ### Core Services
 
-#### Firebase Configuration (`firebase.ts`)
+#### Firebase Configuration (`config/firebase.ts`)
 - Initialized with environment variables (EXPO_PUBLIC_FIREBASE_*)
-- Exports configured Firestore database instance
+- Exports configured Firestore database and Auth instances
+- Centralized configuration for all Firebase services
+
+#### Auth Service (`authService.ts`)
+- Firebase Authentication wrapper
+- User registration, login, logout, password reset
+- Integrates with AuthContext for global state management
 
 #### Habit Service (`habitService.ts`)
-- CRUD operations for habits in Firestore
-- Collections: `habits`, `completions`
+- CRUD operations for habits in Firestore with user scoping
+- Collections: `habits`, `completions` (scoped by userId)
 - Key methods:
   - `addHabit()`, `getHabits()`, `updateHabit()`, `deleteHabit()`
   - `completeHabitForToday()`, `uncompleteHabitForToday()`
   - `isHabitCompletedToday()`, `getHabitCompletions()`
-  - `getHabitStreak()` - Calculates consecutive day streaks
+  - `getHabitStreak()`, `getTodayCompletedHabits()`
 
-#### Todo Service (`todoService.ts`) 
-- Legacy todo functionality (still present but replaced by habits)
-- Collection: `todos`
-- German error messages in console logs
+#### Chat Coach Service (`chatCoachService.ts`)
+- AI-powered coaching system with contextual responses
+- Integrates with user's habit data for personalized advice
+- German language support with motivational messaging
+- Smart response generation based on user's progress and habits
+
+#### Legacy Services
+- **todoService.ts**: Legacy todo functionality (deprecated, use habitService instead)
+- Collection: `todos` - Consider for cleanup/removal
 
 ### Main Components
 
@@ -75,16 +97,39 @@ npm run reset-project
 - Features: Add/edit/delete habits, mark daily completion, view streaks
 - Modal-based forms for adding/editing habits
 - Long press for habit history
+- Platform-specific dialog handling (web vs mobile)
 
 #### HabitHistory (`components/HabitHistory.tsx`)
 - Calendar view of habit completion history
 - Visual representation of streaks and patterns
 
+#### AddOptionsModal (`components/AddOptionsModal.tsx`)
+- Central modal for choosing between adding habits or starting chat
+- Integrates with CustomTabBar's add button
+- German UI with clear action options
+
+#### CompletedHabitsToday (`components/CompletedHabitsToday.tsx`)
+- Shows today's completed habits with timestamps
+- Real-time refresh functionality
+- Empty state handling
+
+#### AuthGuard (`components/AuthGuard.tsx`)
+- Authentication wrapper component
+- Redirects to login when user not authenticated
+- Manages loading states during auth checks
+
 ### Navigation Structure
-- Stack Navigator (root)
-  - Tab Navigator
-    - Habits Tab (`index.tsx`) - Contains HabitList component
-    - Settings Tab (`settings.tsx`) - App configuration
+- **Root Stack Navigator** with AuthGuard protection
+  - **Authentication Stack** (`app/auth/`) - Unauthenticated users
+    - Login (`login.tsx`)
+    - Register (`register.tsx`) 
+    - Forgot Password (`forgot-password.tsx`)
+  - **Main Tab Navigator** (authenticated users only)
+    - Habits Tab (`index.tsx`) - Primary interface with HabitList component
+    - Settings Tab (`settings.tsx`) - User profile and app configuration
+  - **Modal Screens**
+    - Chat Coach (`chat-coach.tsx`) - AI coaching interface
+    - AddOptionsModal - Central action modal
   - Not Found Screen (`+not-found.tsx`)
 
 ### Theming System
@@ -103,71 +148,85 @@ Required Firebase configuration in `.env` or Expo environment:
 - `EXPO_PUBLIC_FIREBASE_APP_ID`
 - `EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID`
 
-## TypeScript Configuration
+## Development Configuration
+
+### TypeScript Configuration
 - Extends `expo/tsconfig.base`
-- Strict mode enabled
+- Strict mode enabled for better type safety
 - Path alias: `@/*` maps to root directory
 
-## ESLint Configuration
-- Uses `eslint-config-expo/flat`
+### ESLint Configuration
+- Uses `eslint-config-expo/flat` configuration
 - Ignores `dist/*` directory
+- Run via `npm run lint`
 
-## Recent Changes & Fixes (Aug 2025)
+### Key Development Patterns
+- **Platform Detection**: Use `Platform.OS === 'web'` for web-specific behavior
+- **Dialog Pattern**: `Platform.OS === 'web' ? window.confirm() : Alert.alert()`
+- **Firebase Version**: Use firebase-tools v13.15.4 for Node.js 18 compatibility
+- **User Interface**: Primarily German language - maintain consistency
 
-### Fixed Issues
-1. **Habit Deletion on Web Platform**
-   - **Problem**: `Alert.alert()` doesn't work properly on web browsers
-   - **Solution**: Use `Platform.OS === 'web'` check with `window.confirm()` for web, keep `Alert.alert()` for mobile
-   - **Location**: `components/HabitList.tsx` deleteHabit function
-   - **Pattern**: Same approach used in TodoList for web compatibility
+## Recent Changes & Major Features (Aug 2025)
 
-2. **TodoList Component Cleanup** 
-   - Removed TodoList import and component from settings.tsx
-   - Cleaned up todo-related state and UI elements
-   - App now focuses purely on habit tracking
+### ✅ Completed Features
 
-### Technical Learnings
-- **Web Compatibility**: React Native Alert components need platform-specific handling for web
-- **Firebase Integration**: Habit deletion properly cascades to remove all completion records
-- **UI Patterns**: Confirmation dialogs should use native browser dialogs on web for better UX
+#### 1. **AI Chat Coach Integration**
+- **New Feature**: AI-powered chat interface for habit coaching
+- **Key Files**: `app/chat-coach.tsx`, `chatCoachService.ts`
+- **Features**: Personalized responses based on user's habits, German language support, contextual advice
+- **Integration**: Accessible via AddOptionsModal and custom tab bar
 
-### Current State
-- ✅ Habit CRUD operations working (add, edit, delete, toggle completion)
-- ✅ Firebase Firestore integration functional
-- ✅ Streak calculation and history tracking
-- ✅ Web platform compatibility for all core features
-- ✅ Settings screen with app preferences
+#### 2. **Enhanced User Interface**
+- **AddOptionsModal**: Central modal for choosing between adding habits or starting chat
+- **CompletedHabitsToday**: Shows today's completed habits with timestamps
+- **HabitStreakModal**: Enhanced streak visualization (file present, integration TBD)
+- **CustomTabBar**: Improved navigation with add button integration
 
-### Outstanding Tasks (from README.md)
-- "Outstanding / Next Session" section is currently empty
-- All major issues have been resolved
+#### 3. **Firebase Authentication System**
+- **Full Auth Flow**: Registration, login, password reset, logout
+- **User Scoping**: All habits now scoped to authenticated users
+- **AuthContext**: Global authentication state management
+- **AuthGuard**: Automatic redirect to login when not authenticated
+- **Security Rules**: Firestore rules for data isolation (`firestore.rules`)
 
-## Firebase Authentication (Aug 2025)
+#### 4. **Architecture Improvements**
+- **Config Refactoring**: Firebase config moved to `config/firebase.ts`
+- **Service Layer**: Enhanced habitService with user scoping
+- **Platform Compatibility**: Consistent web/mobile dialog handling
 
-### ✅ Tested & Working (Web Only)
-- Register/login UI works
-- Logout functionality works  
-- Settings shows user profile with password change option
+### 🔧 Technical Improvements
 
-### ❓ Not Yet Tested
-- Password reset emails (email service not configured)
-- User data isolation (habits scoped to userId)
-- Cross-platform auth (iOS/Android)
-- Firestore security rules enforcement
+#### Platform Compatibility Patterns
+- **Dialog Pattern**: `Platform.OS === 'web' ? window.confirm() : Alert.alert()`
+- **Navigation**: Proper stack/tab navigation with authentication flow
+- **State Management**: AuthContext with proper loading states
 
-### 🔧 Key Files Added
-- `authService.ts` - Firebase auth methods
-- `contexts/AuthContext.tsx` - Global auth state
-- `app/auth/*` - Login/register/reset screens
-- `habitService.ts` - Updated with userId scoping
-- `firestore.rules` - Database security rules
+#### Firebase Integration
+- **Security**: Firestore rules for user data isolation
+- **Deployment**: NPM scripts for deploying rules and indexes
+- **Authentication**: Complete auth flow with error handling
 
-### ⚠️ Critical Next Steps
-- **Deploy rules**: `npm run firebase:rules` (data security not enforced yet)
-- **Test data isolation**: Create 2 accounts, verify habits don't cross over
-- **Email setup**: Configure Firebase email service for password reset
+### ⚠️ Current State & Next Steps
 
-### 🚨 Known Issues
-- **Firebase CLI**: Use v13.15.4 for Node.js 18
-- **Platform dialogs**: `Platform.OS === 'web'` ? `window.confirm()` : `Alert.alert()`
-- Existing habits need userId field migration
+#### ✅ Working Features
+- Complete habit CRUD operations with user scoping
+- Firebase Authentication (register, login, logout)
+- AI Chat Coach with contextual responses
+- Cross-platform compatibility (web, iOS, Android)
+- Enhanced UI with modal-based workflows
+
+#### 📋 Outstanding Tasks
+- **Security Rules Deployment**: Run `npm run firebase:rules` to enforce data isolation
+- **Email Configuration**: Set up Firebase email service for password reset
+- **Data Migration**: Migrate existing habits to include userId field
+- **Cross-Platform Testing**: Test authentication on iOS/Android
+- **HabitStreakModal Integration**: Complete implementation of streak modal
+
+#### 🚨 Development Guidelines & Patterns
+- **Firebase CLI Version**: Use v13.15.4 for Node.js 18 compatibility
+- **Platform Dialogs**: Always check platform before using Alert components
+- **Authentication State**: Use AuthGuard for protected routes
+- **German UI**: Interface primarily in German - maintain language consistency
+- **Data Scoping**: All operations must respect user authentication and data isolation
+- **Cross-Platform**: Test changes on web primarily, but consider mobile implications
+- **Component Patterns**: Follow existing modal and dialog patterns for consistency

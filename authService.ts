@@ -3,19 +3,19 @@
 // Methoden: Sign up, Sign in, Sign out, Password reset, User state management
 
 import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  sendPasswordResetEmail,
-  onAuthStateChanged,
-  User,
-  updateProfile,
-  deleteUser,
-  updatePassword,
-  EmailAuthProvider,
-  reauthenticateWithCredential,
+    createUserWithEmailAndPassword,
+    deleteUser,
+    EmailAuthProvider,
+    onAuthStateChanged,
+    reauthenticateWithCredential,
+    sendPasswordResetEmail,
+    signInWithEmailAndPassword,
+    signOut,
+    updatePassword,
+    updateProfile,
+    User,
 } from 'firebase/auth';
-import { auth } from './firebase';
+import { auth } from './config/firebase';
 
 // Auth Error Types für bessere Typisierung
 export interface AuthError {
