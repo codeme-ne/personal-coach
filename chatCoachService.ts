@@ -4,8 +4,8 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useHabitStore } from './stores/habitStore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { auth } from './config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { auth, functions } from './config/firebase';
 
 // === Interfaces ===
 export interface ChatMessage {
@@ -35,9 +35,6 @@ interface UserProfile {
   joinDate: Date;
   personalityInsights: string[];
 }
-
-// Firebase Functions Configuration
-const functions = getFunctions();
 
 // Response Source Tracking
 let lastResponseSource: 'cloud' | 'fallback' = 'fallback';
