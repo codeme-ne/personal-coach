@@ -13,6 +13,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "firebase:deploy": "firebase deploy --only firestore:rules,firestore:indexes",
+    "firebase:functions": "firebase deploy --only functions",
     "firebase:rules": "firebase deploy --only firestore:rules",
     "firebase:login": "firebase login",
     "debug": "EXPO_PUBLIC_DEBUG_LEVEL=trace expo start --web",
