@@ -9,6 +9,18 @@ Umfassende Refactoring- und Feature-Implementierung zur Optimierung der "Persona
 
 ---
 
+## 🚀 Aktuell: Client-Side zu Cloud Function Migration (PR 2)
+
+**Status**: Implementiert - Client nutzt jetzt Cloud Function für AI-Antworten
+
+### Technische Änderungen
+- **Client**: Keine client-seitige LLM SDKs oder API Keys mehr
+- **Integration**: Cloud Function wird zuerst aufgerufen; intelligenter Fallback bei Fehlern
+- **API Keys**: Müssen nur noch server-seitig in Cloud Functions konfiguriert werden
+- **Offline Support**: Lokaler Fallback bleibt für Offline-/Fehler-Szenarien erhalten
+
+---
+
 ## 📦 Neue Dependencies
 
 ```json

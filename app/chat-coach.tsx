@@ -201,11 +201,9 @@ export default function ChatCoachScreen() {
         true
       );
       
-      // Generiere Antwort mit vollständiger History
-      const allMessages = [...messages, userMessage];
+      // Generiere Antwort
       const botResponse = await chatCoachService.generateResponse(
-        userMessage.text,
-        allMessages
+        userMessage.text
       );
       
       const botMessage: ChatMessage = {
