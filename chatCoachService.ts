@@ -1,10 +1,11 @@
 // === AI Chat Coach Service ===
-// Zweck: Echter AI-Coach mit LLM API und permanentem Speicher
-// Features: Hugging Face API, Kontext-bewusste Responses, Chat-History
+// Zweck: Echter AI-Coach mit Firebase Cloud Function und permanentem Speicher
+// Features: Firebase Functions, Kontext-bewusste Responses, Chat-History
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useHabitStore } from './stores/habitStore';
-import { Together } from 'together-ai';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { auth } from './config/firebase';
 
 // === Interfaces ===
 export interface ChatMessage {
@@ -35,21 +36,11 @@ interface UserProfile {
   personalityInsights: string[];
 }
 
-// AI API Configuration
-const AI_CONFIG = {
-  // Hugging Face Inference API (kostenlos mit Rate Limit)
-  HF_API_URL: 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium',
-  HF_TOKEN: null, // Kann später hinzugefügt werden falls benötigt
-  
-  // Together.ai API mit SDK (kostenlos für Entwickler)
-  TOGETHER_TOKEN: null, // Setze hier deinen API Key: process.env.TOGETHER_API_KEY
-  
-  // Fallback zu intelligenter lokaler KI-Simulation
-  USE_FALLBACK: true
-};
+// Firebase Functions Configuration
+const functions = getFunctions();
 
-// Together.ai Client (wird initialisiert wenn Token verfügbar)
-let togetherClient: Together | null = null;
+// Response Source Tracking
+let lastResponseSource: 'cloud' | 'fallback' = 'fallback';
 
 // === Chat Coach Service Class ===
 export class ChatCoachService {
@@ -165,92 +156,42 @@ export class ChatCoachService {
     const context = await this.getUserContext();
     const profile = await this.loadUserProfile();
     
-    // Versuche AI API zuerst
-    if (!AI_CONFIG.USE_FALLBACK) {
-      try {
-        const aiResponse = await this.callAIAPI(userMessage, context, profile);
-        if (aiResponse) {
-          return aiResponse;
-        }
-      } catch (error) {
-        console.log('AI API failed, using intelligent fallback:', error);
-      }
+    // Versuche Cloud Function zuerst
+    try {
+      const response = await this.callCloudAI(userMessage, context, profile);
+      lastResponseSource = 'cloud';
+      return this.cleanAIResponse(response);
+    } catch (error) {
+      console.log('Cloud Function failed, using intelligent fallback:', error);
+      lastResponseSource = 'fallback';
+      return this.generateIntelligentFallback(userMessage, context, profile);
     }
-    
-    // Intelligenter Fallback mit deutlich verbesserter Logik
-    return this.generateIntelligentFallback(userMessage, context, profile);
   }
 
-  private async callAIAPI(userMessage: string, context: CoachingContext, profile: UserProfile | null): Promise<string | null> {
-    // Erstelle professionellen Coaching-Prompt
-    const systemPrompt = await this.createCoachingPrompt(context, profile);
-    const conversationHistory = this.buildConversationHistory();
-    const fullPrompt = `${systemPrompt}\n\n${conversationHistory}\nBenutzer: ${userMessage}\nCoach:`;
+  private async callCloudAI(userMessage: string, context: CoachingContext, profile: UserProfile | null): Promise<string> {
+    const getChatResponse = httpsCallable(functions, 'getChatResponse');
     
-    try {
-      // Hugging Face API Versuch
-      const response = await fetch(AI_CONFIG.HF_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(AI_CONFIG.HF_TOKEN && { 'Authorization': `Bearer ${AI_CONFIG.HF_TOKEN}` })
-        },
-        body: JSON.stringify({
-          inputs: fullPrompt,
-          parameters: {
-            max_length: 200,
-            temperature: 0.7,
-            do_sample: true,
-            top_p: 0.9,
-            repetition_penalty: 1.1
-          }
-        })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const generatedText = data[0]?.generated_text || '';
-        
-        // Extrahiere nur die Coach-Response
-        const coachResponse = generatedText.split('Coach:').pop()?.trim();
-        if (coachResponse && coachResponse.length > 10) {
-          return this.cleanAIResponse(coachResponse);
-        }
-      }
-    } catch (error) {
-      console.log('Hugging Face API error:', error);
+    // Build chat history for context
+    const chatHistory = this.chatHistory.slice(-5).map(msg => ({
+      role: msg.isUser ? 'user' as const : 'assistant' as const,
+      content: msg.text,
+      timestamp: msg.timestamp
+    }));
+    
+    const requestData = {
+      message: userMessage,
+      chatHistory,
+      language: 'de' as const
+    };
+    
+    const result = await getChatResponse(requestData);
+    const data = result.data as { text: string; source: string };
+    
+    if (!data.text) {
+      throw new Error('No response text from cloud function');
     }
     
-    // Fallback zu Together.ai SDK falls Hugging Face fehlschlägt
-    try {
-      if (togetherClient) {
-        const response = await togetherClient.chat.completions.create({
-          messages: [
-            {
-              role: "system",
-              content: systemPrompt
-            },
-            {
-              role: "user", 
-              content: userMessage
-            }
-          ],
-          model: "openai/gpt-oss-120b", // Besseres OSS GPT Model
-          max_tokens: 150,
-          temperature: 0.7,
-          top_p: 0.9
-        });
-        
-        const generatedText = response.choices[0]?.message?.content || '';
-        if (generatedText.length > 10) {
-          return this.cleanAIResponse(generatedText);
-        }
-      }
-    } catch (error) {
-      console.log('Together.ai API error:', error);
-    }
-    
-    return null;
+    return data.text;
   }
 
   private async createCoachingPrompt(context: CoachingContext, profile: UserProfile | null): Promise<string> {
@@ -787,60 +728,19 @@ Antworte als persönlicher Coach "Alex", der seinen Klienten wirklich kennt!`;
 
   // === API Management ===
   
-  // Aktiviere AI APIs (für zukünftige Implementierung)
-  public async enableAIAPI(apiType: 'huggingface' | 'together', token: string): Promise<boolean> {
-    try {
-      if (apiType === 'huggingface') {
-        AI_CONFIG.HF_TOKEN = token;
-      } else if (apiType === 'together') {
-        AI_CONFIG.TOGETHER_TOKEN = token;
-        // Initialisiere Together.ai Client
-        togetherClient = new Together({
-          apiKey: token
-        });
-      }
-      
-      AI_CONFIG.USE_FALLBACK = false;
-      
-      // Teste API
-      const testResponse = await this.generateResponse('Test');
-      return testResponse.length > 0;
-    } catch (error) {
-      console.error('Failed to enable AI API:', error);
-      AI_CONFIG.USE_FALLBACK = true;
-      return false;
-    }
+  // Get the source of the last response
+  public getLastResponseSource(): 'cloud' | 'fallback' {
+    return lastResponseSource;
   }
   
-  // Status der AI APIs
-  public getAPIStatus(): { huggingface: boolean; together: boolean; fallback: boolean } {
+  // Status der API-Integration  
+  public getAPIStatus(): { cloud: boolean; fallback: boolean } {
     return {
-      huggingface: !!AI_CONFIG.HF_TOKEN,
-      together: !!togetherClient,
-      fallback: AI_CONFIG.USE_FALLBACK
+      cloud: !!auth.currentUser, // Cloud function available if user is authenticated
+      fallback: true // Fallback is always available
     };
-  }
-  
-  // Initialisiere Together.ai mit API Key (für direkte Verwendung)
-  public initializeTogetherAI(apiKey: string): void {
-    try {
-      AI_CONFIG.TOGETHER_TOKEN = apiKey;
-      togetherClient = new Together({
-        apiKey: apiKey
-      });
-      AI_CONFIG.USE_FALLBACK = false;
-      console.log('Together.ai initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize Together.ai:', error);
-      AI_CONFIG.USE_FALLBACK = true;
-    }
   }
 }
 
 // Export Singleton Instance
 export const chatCoachService = ChatCoachService.getInstance();
-
-// Initialisiere Together.ai falls API Key in Environment verfügbar
-if (process.env.TOGETHER_API_KEY) {
-  chatCoachService.initializeTogetherAI(process.env.TOGETHER_API_KEY);
-}
