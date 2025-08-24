@@ -1,9 +1,10 @@
 // === Cloud Functions für Personal Coach ===
 // Zweck: Serverless Backend-Funktionen für KI-Integration und erweiterte Features
-// Features: Claude 3.5 Sonnet Integration, Kontext-basierte Antworten, User Analytics
+// Features: Together AI Llama 3.1 Integration, Kontext-basierte Antworten, User Analytics
 
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { createTogetherSystemPrompt, buildMessagesForTogether } from './prompts';
 
 // Initialize Firebase Admin
 if (!admin.apps.length) {
@@ -13,13 +14,13 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // === Interfaces ===
-interface ChatMessage {
+export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
 }
 
-interface UserContext {
+export interface UserContext {
   userId: string;
   totalHabits: number;
   completedToday: number;
@@ -49,7 +50,7 @@ async function getUserContext(userId: string): Promise<UserContext> {
       .where('userId', '==', userId)
       .get();
     
-    const habits = habitsSnapshot.docs.map(doc => ({
+    const habits = habitsSnapshot.docs.map((doc: admin.firestore.QueryDocumentSnapshot) => ({
       id: doc.id,
       ...doc.data()
     }));
@@ -71,14 +72,14 @@ async function getUserContext(userId: string): Promise<UserContext> {
     
     // Berechne Streaks und finde Top-Habits
     const habitsWithStreaks = await Promise.all(
-      habits.map(async (habit) => {
+      habits.map(async (habit: any) => {
         const streak = habit.streakCount || 0;
         return { name: habit.name, streak };
       })
     );
     
     // Sortiere nach Streak
-    habitsWithStreaks.sort((a, b) => b.streak - a.streak);
+    habitsWithStreaks.sort((a: {name: string, streak: number}, b: {name: string, streak: number}) => b.streak - a.streak);
     const topHabits = habitsWithStreaks.slice(0, 3);
     const longestStreak = habitsWithStreaks[0]?.streak || 0;
     
@@ -113,132 +114,64 @@ async function getUserContext(userId: string): Promise<UserContext> {
   }
 }
 
-/**
- * Erstellt einen detaillierten Prompt für Claude 3.5 Sonnet
- */
-function createPrompt(
-  userMessage: string,
-  userContext: UserContext,
-  chatHistory: ChatMessage[],
-  language: string = 'de'
-): string {
-  const systemPrompt = language === 'de' ? `
-Du bist ein einfühlsamer, motivierender persönlicher Coach in der "Personal Coach" App.
-Deine Aufgabe ist es, Nutzer bei der Entwicklung und Aufrechterhaltung positiver Gewohnheiten zu unterstützen.
 
-WICHTIGE RICHTLINIEN:
-- Sei warmherzig, unterstützend und ermutigend
-- Gib konkrete, umsetzbare Ratschläge
-- Beziehe dich auf die spezifischen Daten des Nutzers
-- Verwende eine positive, lösungsorientierte Sprache
-- Halte Antworten prägnant (max. 3-4 Sätze, außer bei komplexen Fragen)
-- Nutze gelegentlich Emojis für Motivation (💪, 🎯, ⭐, 🔥)
-
-NUTZER-KONTEXT:
-- Anzahl Gewohnheiten: ${userContext.totalHabits}
-- Heute abgeschlossen: ${userContext.completedToday} (${userContext.progressPercentage}%)
-- Längste Serie: ${userContext.longestStreak} Tage
-- Top-Gewohnheiten: ${userContext.topHabits.map(h => `${h.name} (${h.streak} Tage)`).join(', ') || 'Noch keine'}
-- Status: ${userContext.recentActivity}
-
-CHAT-VERLAUF:
-${chatHistory.slice(-5).map(msg => `${msg.role === 'user' ? 'Nutzer' : 'Coach'}: ${msg.content}`).join('\n')}
-
-Aktuelle Nachricht des Nutzers: ${userMessage}
-
-Antworte auf Deutsch, es sei denn, der Nutzer verwendet Englisch.
-` : `
-You are an empathetic, motivating personal coach in the "Personal Coach" app.
-Your task is to support users in developing and maintaining positive habits.
-
-IMPORTANT GUIDELINES:
-- Be warm, supportive, and encouraging
-- Give specific, actionable advice
-- Reference the user's specific data
-- Use positive, solution-oriented language
-- Keep responses concise (max. 3-4 sentences unless complex questions)
-- Occasionally use emojis for motivation (💪, 🎯, ⭐, 🔥)
-
-USER CONTEXT:
-- Number of habits: ${userContext.totalHabits}
-- Completed today: ${userContext.completedToday} (${userContext.progressPercentage}%)
-- Longest streak: ${userContext.longestStreak} days
-- Top habits: ${userContext.topHabits.map(h => `${h.name} (${h.streak} days)`).join(', ') || 'None yet'}
-- Status: ${userContext.recentActivity}
-
-CHAT HISTORY:
-${chatHistory.slice(-5).map(msg => `${msg.role === 'user' ? 'User' : 'Coach'}: ${msg.content}`).join('\n')}
-
-Current user message: ${userMessage}
-
-Respond in English.
-`;
-
-  return systemPrompt;
-}
 
 /**
- * Simuliert einen Claude 3.5 Sonnet API Call
- * In Produktion würde hier die echte Anthropic API aufgerufen
+ * Ruft Together AI's Chat Completion API auf
+ * Macht einen echten REST Call zu Together's Llama 3.1 Modell
  */
-async function callClaudeAPI(prompt: string): Promise<string> {
-  // Simulierte KI-Antwort basierend auf dem Kontext
-  // In Produktion: Echter API Call zu Anthropic
-  
-  // Für Demo: Intelligente regelbasierte Antworten
-  const lowerPrompt = prompt.toLowerCase();
-  
-  if (lowerPrompt.includes('fortschritt') || lowerPrompt.includes('progress')) {
-    const context = prompt.match(/Heute abgeschlossen: (\d+) \((\d+)%\)/);
-    if (context) {
-      const completed = parseInt(context[1]);
-      const percentage = parseInt(context[2]);
-      
-      if (percentage >= 80) {
-        return `Wow, ${percentage}% heute geschafft! 🔥 Du bist auf einem fantastischen Weg! Diese Konstanz wird sich definitiv auszahlen. Was war heute deine größte Herausforderung?`;
-      } else if (percentage >= 50) {
-        return `Super, du hast bereits ${completed} Gewohnheiten abgeschlossen! 💪 Du bist über der Hälfte - das zeigt echtes Engagement. Welche Gewohnheit fällt dir heute am schwersten?`;
-      } else if (percentage > 0) {
-        return `Gut gemacht mit ${completed} Gewohnheit${completed > 1 ? 'en' : ''}! 🎯 Jeder Schritt zählt. Was hält dich davon ab, noch eine weitere Gewohnheit heute anzugehen?`;
-      } else {
-        return `Ich sehe, du hast heute noch nicht angefangen. Das ist okay! 🌟 Der beste Zeitpunkt anzufangen ist jetzt. Welche Gewohnheit wäre die einfachste für den Start?`;
-      }
-    }
+async function callTogetherAPI(
+  systemPrompt: string, 
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+): Promise<string> {
+  const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
+  const TOGETHER_MODEL = process.env.TOGETHER_MODEL || 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo';
+
+  if (!TOGETHER_API_KEY) {
+    throw new Error('TOGETHER_API_KEY environment variable is not set');
   }
-  
-  if (lowerPrompt.includes('motivation') || lowerPrompt.includes('schwer') || lowerPrompt.includes('aufgeben')) {
-    const streakMatch = prompt.match(/Längste Serie: (\d+) Tage/);
-    const streak = streakMatch ? parseInt(streakMatch[1]) : 0;
+
+  try {
+    const response = await fetch('https://api.together.xyz/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${TOGETHER_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: TOGETHER_MODEL,
+        messages: messages,
+        max_tokens: 400,
+        temperature: 0.7,
+        top_p: 0.9,
+        stop: null,
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Together API error ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
     
-    if (streak > 7) {
-      return `Mit ${streak} Tagen hast du bereits bewiesen, dass du durchhalten kannst! 💪 Denk daran: Du bist stärker als deine Ausreden. Diese Herausforderung ist nur temporär, deine Stärke ist permanent. Was genau macht es heute schwer?`;
-    } else {
-      return `Jeder Meister war einmal ein Anfänger. 🌱 Fokussiere dich auf kleine Wins - schon 2 Minuten täglich können einen Unterschied machen. Was wäre heute ein kleiner, machbarer Schritt?`;
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error('Invalid response format from Together API');
     }
+
+    return data.choices[0].message.content.trim();
+  } catch (error) {
+    console.error('Together API call failed:', error);
+    throw error;
   }
-  
-  if (lowerPrompt.includes('tipp') || lowerPrompt.includes('hilfe') || lowerPrompt.includes('ratschlag')) {
-    const habitsMatch = prompt.match(/Anzahl Gewohnheiten: (\d+)/);
-    const habits = habitsMatch ? parseInt(habitsMatch[1]) : 0;
-    
-    if (habits === 0) {
-      return `Lass uns mit einer einzigen Gewohnheit starten! 🎯 Wähle etwas Kleines und Machbares - z.B. 5 Minuten Lesen oder ein Glas Wasser nach dem Aufstehen. Was interessiert dich am meisten?`;
-    } else if (habits > 5) {
-      return `Mit ${habits} Gewohnheiten jonglierst du schon einiges! 🎪 Tipp: Priorisiere 2-3 Kerngewohnheiten und baue die anderen drumherum. Welche sind dir am wichtigsten?`;
-    } else {
-      return `Verbinde neue Gewohnheiten mit bestehenden Routinen! 🔗 Nach dem Zähneputzen 5 Liegestütze, nach dem Kaffee 10 Minuten lesen. Was ist deine stabilste tägliche Routine?`;
-    }
-  }
-  
-  // Default personalisierte Antwort
-  return `Das ist eine interessante Frage! Basierend auf deinen Daten sehe ich großes Potenzial. 🌟 Erzähl mir mehr darüber, damit ich dir gezielter helfen kann.`;
 }
 
 // === Cloud Functions ===
 
 /**
  * HTTPS Callable Function für Chat-Antworten
- * Nimmt Nutzernachricht entgegen und generiert KI-basierte Antwort
+ * Nutzt Together AI's Llama 3.1 für echte KI-Antworten
  */
 export const getChatResponse = functions
   .region('europe-west1')
@@ -246,7 +179,7 @@ export const getChatResponse = functions
     timeoutSeconds: 60,
     memory: '512MB'
   })
-  .https.onCall(async (data: ChatRequest, context) => {
+  .https.onCall(async (data: ChatRequest, context: functions.https.CallableContext) => {
     // Authentifizierung prüfen
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -269,36 +202,39 @@ export const getChatResponse = functions
       // Lade Nutzerkontext
       const userContext = await getUserContext(userId);
       
-      // Erstelle Prompt
-      const prompt = createPrompt(
-        data.message,
-        userContext,
+      // Erstelle System-Prompt für Together AI
+      const systemPrompt = createTogetherSystemPrompt(userContext, data.language || 'de');
+      
+      // Baue Messages-Array für Together API
+      const messages = buildMessagesForTogether(
+        systemPrompt,
         data.chatHistory || [],
-        data.language || 'de'
+        data.message
       );
       
-      // Rufe KI API auf (simuliert)
-      const response = await callClaudeAPI(prompt);
+      // Rufe Together AI API auf
+      const aiResponse = await callTogetherAPI(systemPrompt, messages);
       
       // Log für Analytics (optional)
       await db.collection('chat_logs').add({
         userId,
         message: data.message,
-        response,
+        response: aiResponse,
         context: userContext,
+        source: 'cloud',
+        model: process.env.TOGETHER_MODEL || 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
         timestamp: admin.firestore.FieldValue.serverTimestamp()
       });
       
       return {
-        success: true,
-        response,
-        context: userContext
+        text: aiResponse,
+        source: 'cloud'
       };
     } catch (error) {
       console.error('Error in getChatResponse:', error);
       throw new functions.https.HttpsError(
         'internal',
-        'Failed to generate response'
+        'Failed to generate response: ' + (error instanceof Error ? error.message : 'Unknown error')
       );
     }
   });
@@ -311,7 +247,7 @@ export const dailyMotivationCheck = functions
   .region('europe-west1')
   .pubsub.schedule('0 20 * * *')
   .timeZone('Europe/Berlin')
-  .onRun(async (context) => {
+  .onRun(async (context: functions.EventContext) => {
     try {
       // Finde Nutzer, die heute noch keine Gewohnheiten abgeschlossen haben
       const usersSnapshot = await db.collection('users').get();
@@ -346,7 +282,7 @@ export const calculateWeeklyStats = functions
   .region('europe-west1')
   .pubsub.schedule('0 0 * * 1') // Jeden Montag um Mitternacht
   .timeZone('Europe/Berlin')
-  .onRun(async (context) => {
+  .onRun(async (context: functions.EventContext) => {
     try {
       const usersSnapshot = await db.collection('users').get();
       
