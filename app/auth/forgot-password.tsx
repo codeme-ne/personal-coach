@@ -29,9 +29,9 @@ export default function ForgotPasswordScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const cardBackground = useThemeColor({ light: '#f8f9fa', dark: '#1a1a1a' }, 'background');
-  const primaryColor = useThemeColor({ light: '#007AFF', dark: '#0A84FF' }, 'tint');
+  const primaryColor = useThemeColor({ light: '#10B981', dark: '#34D399' }, 'tint'); // Grün statt Blau
   const errorColor = '#FF3B30';
-  const successColor = '#34C759';
+  const successColor = '#10B981'; // Grün für Success
   
   // Form State
   const [email, setEmail] = useState('');
@@ -141,20 +141,22 @@ export default function ForgotPasswordScreen() {
             <ThemedText type="title" style={styles.title}>
               Passwort vergessen?
             </ThemedText>
-            <ThemedText style={styles.subtitle}>
-              {isSuccess 
-                ? 'E-Mail erfolgreich gesendet!'
-                : 'Geben Sie Ihre E-Mail-Adresse ein, um Ihr Passwort zurückzusetzen.'
-              }
-            </ThemedText>
+            {!isSuccess && (
+              <ThemedText style={styles.subtitle}>
+                Geben Sie Ihre E-Mail-Adresse ein, um Ihr Passwort zurückzusetzen.
+              </ThemedText>
+            )}
           </View>
 
           {/* Success State */}
           {isSuccess ? (
             <View>
               {/* Success Message */}
-              <View style={[styles.successContainer, { borderColor: successColor }]}>
-                <Text style={[styles.successText, { color: successColor }]}>
+              <View style={[styles.successContainer, { backgroundColor: `${successColor}15`, borderColor: successColor }]}>
+                <Text style={styles.successTitle}>
+                  ✓ E-Mail erfolgreich gesendet!
+                </Text>
+                <Text style={[styles.successText, { color: textColor }]}>
                   Wir haben Ihnen eine E-Mail mit Anweisungen zum Zurücksetzen Ihres Passworts gesendet.
                 </Text>
               </View>
@@ -234,7 +236,7 @@ export default function ForgotPasswordScreen() {
                 {isSubmitting || isLoading ? (
                   <ActivityIndicator color="white" size="small" />
                 ) : (
-                  <Text style={styles.resetButtonText}>Passwort zurücksetzen</Text>
+                  <Text style={styles.resetButtonText}>E-Mail senden</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -304,17 +306,24 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   successContainer: {
-    backgroundColor: '#F0FDF4',
     borderWidth: 1,
     borderRadius: 8,
     padding: 16,
     marginBottom: 24,
   },
+  successTitle: {
+    fontSize: 18,
+    textAlign: 'center',
+    fontWeight: '600',
+    color: '#10B981',
+    marginBottom: 8,
+  },
   successText: {
     fontSize: 14,
     textAlign: 'center',
-    fontWeight: '500',
+    fontWeight: '400',
     lineHeight: 20,
+    opacity: 0.8,
   },
   successInstructions: {
     marginBottom: 24,

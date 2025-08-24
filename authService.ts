@@ -9,6 +9,7 @@ import {
     onAuthStateChanged,
     reauthenticateWithCredential,
     sendPasswordResetEmail,
+    sendEmailVerification,
     signInWithEmailAndPassword,
     signOut,
     updatePassword,
@@ -49,6 +50,9 @@ export const authService = {
       if (displayName && displayName.trim()) {
         await updateProfile(user, { displayName: displayName.trim() });
       }
+      
+      // Sende E-Mail-Verifizierung
+      await sendEmailVerification(user);
 
       return {
         success: true,
@@ -159,6 +163,34 @@ export const authService = {
       return { success: true };
     } catch (error: any) {
       console.error('Change password error:', error);
+      return {
+        success: false,
+        error: {
+          code: error.code,
+          message: this.getErrorMessage(error.code),
+        },
+      };
+    }
+  },
+
+  // E-Mail-Verifizierung erneut senden
+  async resendVerificationEmail(): Promise<{ success: boolean; error?: AuthError }> {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        return {
+          success: false,
+          error: {
+            code: 'auth/user-not-found',
+            message: 'Benutzer nicht gefunden. Bitte erneut anmelden.',
+          },
+        };
+      }
+      
+      await sendEmailVerification(user);
+      return { success: true };
+    } catch (error: any) {
+      console.error('Resend verification email error:', error);
       return {
         success: false,
         error: {

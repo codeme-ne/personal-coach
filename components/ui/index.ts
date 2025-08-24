@@ -7,8 +7,5 @@ export type { ButtonProps } from './Button';
 export { IconButton } from './IconButton';
 export type { IconButtonProps } from './IconButton';
 
-export { TextInput } from './TextInput';
-export type { TextInputProps } from './TextInput';
-
 export { Card } from './Card';
 export type { CardProps } from './Card';

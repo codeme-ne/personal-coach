@@ -1,61 +1,155 @@
 // === Button Component ===
-// Zweck: Standardisierte Button-Komponenten basierend auf Design System
-// Features: Primary, Secondary, Icon Button variants mit Theme Support
+// Zweck: Standardisierte Button-Komponenten mit NativeWind und Design System
+// Features: Primary, Secondary, Text, Danger variants mit Theme Support
 
 import React from 'react';
 import {
   TouchableOpacity,
   ActivityIndicator,
-  StyleSheet,
-  Platform,
   type TouchableOpacityProps,
 } from 'react-native';
 
 import { ThemedText } from '../ThemedText';
-import { useThemeColor } from '@/hooks/useThemeColor';
-import { BorderRadius, Shadow, Spacing } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { DesignSystemColors } from '@/constants/Colors';
 
 export type ButtonProps = TouchableOpacityProps & {
   title?: string;
-  variant?: 'primary' | 'secondary' | 'text' | 'danger';
-  size?: 'small' | 'medium' | 'large';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+  size?: 'sm' | 'default' | 'lg';
   loading?: boolean;
   icon?: React.ReactNode;
   fullWidth?: boolean;
+  className?: string;
 };
 
 export function Button({
   title,
   variant = 'primary',
-  size = 'medium',
+  size = 'default',
   loading = false,
   icon,
   fullWidth = false,
   style,
+  className = '',
   disabled,
   children,
   ...rest
 }: ButtonProps) {
-  const backgroundColor = useThemeColor({}, getBackgroundColor(variant, disabled) as any);
-  const textColor = useThemeColor({}, getTextColor(variant) as any);
-  
-  const buttonStyle = [
-    styles.base,
-    styles[size],
-    styles[variant],
-    { backgroundColor },
-    fullWidth && styles.fullWidth,
-    disabled && styles.disabled,
-    style,
-  ];
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
-  const showShadow = variant === 'primary' && !disabled && Platform.OS === 'ios';
+  // Get colors based on variant and theme
+  const getButtonColors = () => {
+    switch (variant) {
+      case 'primary':
+        return {
+          backgroundColor: isDark ? DesignSystemColors.dark.primary : DesignSystemColors.light.primary,
+          textColor: isDark ? DesignSystemColors.dark.primaryForeground : DesignSystemColors.light.primaryForeground,
+        };
+      case 'secondary':
+        return {
+          backgroundColor: isDark ? DesignSystemColors.dark.secondary : DesignSystemColors.light.secondary,
+          textColor: isDark ? DesignSystemColors.dark.secondaryForeground : DesignSystemColors.light.secondaryForeground,
+        };
+      case 'outline':
+        return {
+          backgroundColor: 'transparent',
+          textColor: isDark ? DesignSystemColors.dark.foreground : DesignSystemColors.light.foreground,
+        };
+      case 'ghost':
+        return {
+          backgroundColor: 'transparent',
+          textColor: isDark ? DesignSystemColors.dark.foreground : DesignSystemColors.light.foreground,
+        };
+      case 'destructive':
+        return {
+          backgroundColor: isDark ? DesignSystemColors.dark.destructive : DesignSystemColors.light.destructive,
+          textColor: '#ffffff',
+        };
+      default:
+        return {
+          backgroundColor: isDark ? DesignSystemColors.dark.primary : DesignSystemColors.light.primary,
+          textColor: isDark ? DesignSystemColors.dark.primaryForeground : DesignSystemColors.light.primaryForeground,
+        };
+    }
+  };
+
+  // Get size classes
+  const getSizeClasses = () => {
+    switch (size) {
+      case 'sm':
+        return 'h-9 px-3';
+      case 'lg':
+        return 'h-11 px-8';
+      default:
+        return 'h-10 px-4 py-2';
+    }
+  };
+
+  // Get variant classes
+  const getVariantClasses = () => {
+    switch (variant) {
+      case 'primary':
+        return 'rounded-md shadow-sm';
+      case 'secondary':
+        return 'rounded-md border border-input shadow-sm';
+      case 'outline':
+        return 'rounded-md border border-input shadow-sm';
+      case 'ghost':
+        return 'rounded-md';
+      case 'destructive':
+        return 'rounded-md shadow-sm';
+      default:
+        return 'rounded-md shadow-sm';
+    }
+  };
+
+  const colors = getButtonColors();
+  // Convert size to style object
+  const sizeStyle = (() => {
+    switch (size) {
+      case 'sm':
+        return { height: 32, paddingHorizontal: 14, paddingVertical: 6 };
+      case 'lg':
+        return { height: 44, paddingHorizontal: 32 };
+      default:
+        return { height: 36, paddingHorizontal: 16, paddingVertical: 8 };
+    }
+  })();
+
+  // Convert variant to style object
+  const variantStyle = (() => {
+    switch (variant) {
+      case 'secondary':
+      case 'outline':
+        return { 
+          borderRadius: 6, 
+          borderWidth: 1, 
+          borderColor: colors.backgroundColor === 'transparent' ? 
+            (isDark ? DesignSystemColors.dark.border : DesignSystemColors.light.border) : 
+            'transparent'
+        };
+      default:
+        return { borderRadius: 6 };
+    }
+  })();
 
   return (
     <TouchableOpacity
       style={[
-        buttonStyle,
-        showShadow && Shadow.md,
+        {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: 44,
+          backgroundColor: colors.backgroundColor,
+          opacity: disabled ? 0.6 : 1,
+          width: fullWidth ? '100%' : undefined,
+        },
+        sizeStyle,
+        variantStyle,
+        style,
       ]}
       disabled={disabled || loading}
       accessibilityRole="button"
@@ -65,18 +159,20 @@ export function Button({
       {loading ? (
         <ActivityIndicator 
           size="small" 
-          color={textColor}
+          color={colors.textColor}
         />
       ) : (
         <>
           {icon && icon}
           {title && (
             <ThemedText
-              type="defaultSemiBold"
-              style={[
-                { color: textColor },
-                ...(icon ? [{ marginLeft: Spacing.sm }] : []),
-              ]}
+              style={{ 
+                color: colors.textColor,
+                marginLeft: icon ? 8 : 0,
+                fontSize: size === 'sm' ? 14 : 15,
+                fontWeight: '600',
+                fontFamily: 'System',
+              }}
             >
               {title}
             </ThemedText>
@@ -88,89 +184,3 @@ export function Button({
   );
 }
 
-// Helper functions for color mapping
-function getBackgroundColor(variant: string, disabled?: boolean): string {
-  if (disabled) {
-    return variant === 'primary' ? 'buttonDisabled' : 'buttonSecondary';
-  }
-  
-  switch (variant) {
-    case 'primary':
-      return 'buttonPrimary';
-    case 'secondary':
-      return 'buttonSecondary';
-    case 'danger':
-      return 'error';
-    case 'text':
-      return 'transparent';
-    default:
-      return 'buttonPrimary';
-  }
-}
-
-function getTextColor(variant: string): string {
-  switch (variant) {
-    case 'primary':
-    case 'danger':
-      return '#FFFFFF';
-    case 'secondary':
-    case 'text':
-      return 'textPrimary';
-    default:
-      return '#FFFFFF';
-  }
-}
-
-const styles = StyleSheet.create({
-  base: {
-    borderRadius: BorderRadius.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44, // iOS touch target minimum
-  },
-  
-  // Size variants
-  small: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    minHeight: 36,
-  },
-  medium: {
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    minHeight: 44,
-  },
-  large: {
-    paddingHorizontal: Spacing.xxl,
-    paddingVertical: Spacing.lg,
-    minHeight: 52,
-  },
-  
-  // Variant styles
-  primary: {
-    // Background color handled by theme
-  },
-  secondary: {
-    borderWidth: 1,
-    borderColor: '#D0D0D0',
-  },
-  text: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  danger: {
-    // Background color handled by theme
-  },
-  
-  // State styles
-  disabled: {
-    opacity: 0.6,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  textWithIcon: {
-    marginLeft: Spacing.sm,
-  },
-});

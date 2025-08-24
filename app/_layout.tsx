@@ -8,10 +8,14 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
 import 'react-native-reanimated';
+import '../global.css';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider } from '../contexts/AuthContext';
+import { FeedbackProvider } from '../contexts/FeedbackContext';
 import { AuthGuard } from '../components/AuthGuard';
+import { DebugDashboard } from '../components/DebugDashboard';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -29,14 +33,24 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AuthGuard>
-          <Stack>
-            {/* Main App Tabs - geschützt durch AuthGuard */}
+    <ErrorBoundary>
+      <AuthProvider>
+        <FeedbackProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Stack>
+            {/* Main App Tabs */}
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             
-            {/* Auth Screens - öffentlich zugänglich */}
+            {/* Chat Coach Modal */}
+            <Stack.Screen 
+              name="chat-coach" 
+              options={{ 
+                headerShown: false,
+                presentation: 'modal'
+              }} 
+            />
+            
+            {/* Auth Screens */}
             <Stack.Screen 
               name="auth/login" 
               options={{ 
@@ -61,10 +75,12 @@ export default function RootLayout() {
             
             {/* Not Found Screen */}
             <Stack.Screen name="+not-found" />
-          </Stack>
-        </AuthGuard>
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </AuthProvider>
+            </Stack>
+            <StatusBar style="auto" />
+            {__DEV__ && <DebugDashboard />}
+          </ThemeProvider>
+        </FeedbackProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

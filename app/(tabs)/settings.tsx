@@ -20,6 +20,50 @@ export default function SettingsScreen() {
   const [darkModeEnabled, setDarkModeEnabled] = useState(colorScheme === 'dark');
   const [isSigningOut, setIsSigningOut] = useState(false);
 
+  // Dark Mode Toggle Handler
+  const handleDarkModeToggle = (value: boolean) => {
+    setDarkModeEnabled(value);
+    // Note: In einer echten App würde hier das Theme persistent gespeichert
+    console.log('Dark Mode toggled:', value);
+  };
+
+  // Notifications Toggle Handler
+  const handleNotificationsToggle = (value: boolean) => {
+    setNotificationsEnabled(value);
+    console.log('Notifications toggled:', value);
+  };
+
+  // Clear All Data Handler
+  const handleClearAllData = () => {
+    Alert.alert(
+      'Alle Daten löschen',
+      'Möchten Sie wirklich alle Gewohnheiten und Daten permanent löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Alles löschen',
+          style: 'destructive',
+          onPress: () => {
+            // TODO: Implementiere tatsächliche Datenlöschung
+            console.log('Clear all data requested');
+          }
+        }
+      ]
+    );
+  };
+
+  // Export Data Handler
+  const handleExportData = () => {
+    console.log('Export data requested');
+    Alert.alert('Export', 'Export-Funktion wird implementiert...');
+  };
+
+  // Import Data Handler
+  const handleImportData = () => {
+    console.log('Import data requested');
+    Alert.alert('Import', 'Import-Funktion wird implementiert...');
+  };
+
   // Sign Out Functionality
   const handleSignOut = async () => {
     const confirmSignOut = () => {
@@ -165,7 +209,7 @@ export default function SettingsScreen() {
           subtitle="Daily reminders for your habits"
           showSwitch
           switchValue={notificationsEnabled}
-          onSwitchChange={setNotificationsEnabled}
+          onSwitchChange={handleNotificationsToggle}
         />
         <View style={styles.separator} />
         <SettingItem
@@ -174,7 +218,7 @@ export default function SettingsScreen() {
           subtitle="Toggle dark theme"
           showSwitch
           switchValue={darkModeEnabled}
-          onSwitchChange={setDarkModeEnabled}
+          onSwitchChange={handleDarkModeToggle}
         />
       </SettingSection>
 
@@ -206,21 +250,21 @@ export default function SettingsScreen() {
           icon="arrow.down.circle"
           title="Export Data"
           subtitle="Download your habit data"
-          onPress={() => {}}
+          onPress={handleExportData}
         />
         <View style={styles.separator} />
         <SettingItem
           icon="arrow.up.circle"
           title="Import Data"
           subtitle="Restore from backup"
-          onPress={() => {}}
+          onPress={handleImportData}
         />
         <View style={styles.separator} />
         <SettingItem
           icon="trash"
           title="Clear All Data"
           subtitle="Delete all habits and history"
-          onPress={() => {}}
+          onPress={handleClearAllData}
         />
       </SettingSection>
 
@@ -277,7 +321,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 34,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    // Entferne hardcoded weiße Farbe - nutze ThemedText default
   },
   section: {
     marginTop: 35,
@@ -324,7 +368,7 @@ const styles = StyleSheet.create({
   settingTitle: {
     fontSize: 16,
     fontWeight: '400',
-    color: '#000000',
+    // Entferne hardcoded schwarz - nutze ThemedText default
   },
   settingSubtitle: {
     fontSize: 13,
@@ -344,7 +388,7 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    // Entferne hardcoded schwarz - nutze ThemedText default
     marginBottom: 4,
   },
   footerSubtext: {
@@ -368,7 +412,7 @@ const styles = StyleSheet.create({
   userEmail: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    // Entferne hardcoded schwarz - nutze ThemedText default
     marginBottom: 4,
   },
   userDisplayName: {

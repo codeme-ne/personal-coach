@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git config:*)",
+      "Bash(git commit:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_handle_dialog",
+      "Bash(npm run lint)",
+      "Bash(npm run debug:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

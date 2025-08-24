@@ -1,82 +1,213 @@
 // === Card Component ===
-// Zweck: Standardisierte Container-Komponente für Cards und Elevated Content
-// Features: Theme Support, Shadow Variants, Consistent Spacing
+// Zweck: Standardisierte Container-Komponente mit NativeWind und Design System
+// Features: Modern Card Layouts, Consistent Spacing, Theme Support, Header/Footer Support
 
 import React from 'react';
-import {
-  StyleSheet,
-  Platform,
-  type ViewProps,
-} from 'react-native';
-
-import { ThemedView } from '../ThemedView';
-import { BorderRadius, Shadow, Spacing } from '@/constants/Colors';
+import { View, StyleSheet, ViewProps, TouchableOpacity } from 'react-native';
+// import { ThemedView } from '../ThemedView'; // Unused
+import { ThemedText } from '../ThemedText';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
 
 export type CardProps = ViewProps & {
-  variant?: 'default' | 'elevated' | 'habit';
-  padding?: 'none' | 'small' | 'medium' | 'large';
+  variant?: 'default' | 'elevated' | 'outline' | 'habit';
   children: React.ReactNode;
+  onPress?: () => void;
 };
 
-export function Card({
+interface CardHeaderProps {
+  children: React.ReactNode;
+  style?: ViewProps['style'];
+}
+
+interface CardContentProps {
+  children: React.ReactNode;
+  style?: ViewProps['style'];
+}
+
+interface CardFooterProps {
+  children: React.ReactNode;
+  style?: ViewProps['style'];
+}
+
+interface CardTitleProps {
+  children: React.ReactNode;
+}
+
+interface CardDescriptionProps {
+  children: React.ReactNode;
+}
+
+interface CardActionProps {
+  children: React.ReactNode;
+}
+
+// Card Header Component
+const CardHeader: React.FC<CardHeaderProps> = ({ children, style }) => {
+  return (
+    <View style={[styles.header, style]}>
+      {children}
+    </View>
+  );
+};
+
+// Card Content Component
+const CardContent: React.FC<CardContentProps> = ({ children, style }) => {
+  return (
+    <View style={[styles.content, style]}>
+      {children}
+    </View>
+  );
+};
+
+// Card Footer Component
+const CardFooter: React.FC<CardFooterProps> = ({ children, style }) => {
+  return (
+    <View style={[styles.footer, style]}>
+      {children}
+    </View>
+  );
+};
+
+// Card Title Component
+const CardTitle: React.FC<CardTitleProps> = ({ children }) => {
+  return (
+    <ThemedText style={styles.title}>
+      {children}
+    </ThemedText>
+  );
+};
+
+// Card Description Component
+const CardDescription: React.FC<CardDescriptionProps> = ({ children }) => {
+  return (
+    <ThemedText style={styles.description}>
+      {children}
+    </ThemedText>
+  );
+};
+
+// Card Action Component
+const CardAction: React.FC<CardActionProps> = ({ children }) => {
+  return (
+    <View style={styles.action}>
+      {children}
+    </View>
+  );
+};
+
+// Main Card Component
+const Card: React.FC<CardProps> = ({
   variant = 'default',
-  padding = 'medium',
   style,
   children,
+  onPress,
   ...rest
-}: CardProps) {
-  const cardStyle = [
-    styles.base,
-    styles[variant],
-    styles[`padding_${padding}`],
-    variant === 'elevated' && Platform.OS === 'ios' && Shadow.sm,
-    style,
-  ];
+}) => {
+  const colorScheme = useColorScheme();
+
+  const getVariantStyles = () => {
+    const baseStyle = {
+      backgroundColor: Colors[colorScheme ?? 'light'].background,
+      borderColor: Colors[colorScheme ?? 'light'].tabIconDefault + '30',
+    };
+
+    switch (variant) {
+      case 'elevated':
+        return {
+          ...baseStyle,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+          elevation: 8,
+        };
+      case 'outline':
+        return {
+          ...baseStyle,
+          borderWidth: 1,
+        };
+      case 'habit':
+        return {
+          ...baseStyle,
+          borderWidth: 1,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
+          elevation: 2,
+        };
+      default:
+        return {
+          ...baseStyle,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 3,
+        };
+    }
+  };
+
+  const CardWrapper = onPress ? TouchableOpacity : View;
 
   return (
-    <ThemedView 
-      style={cardStyle}
+    <CardWrapper
+      style={[
+        styles.card,
+        getVariantStyles(),
+        style
+      ]}
+      onPress={onPress}
       {...rest}
     >
       {children}
-    </ThemedView>
+    </CardWrapper>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  base: {
-    borderRadius: BorderRadius.lg,
+  card: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
   },
-  
-  // Variants
-  default: {
-    // Basic card styling
+  header: {
+    marginBottom: 16,
   },
-  
-  elevated: {
-    elevation: 4, // Android shadow
+  content: {
+    marginBottom: 16,
   },
-  
-  habit: {
+  footer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
+    justifyContent: 'flex-end',
+    gap: 12,
   },
-  
-  // Padding variants
-  padding_none: {
-    padding: 0,
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+    lineHeight: 24,
   },
-  
-  padding_small: {
-    padding: Spacing.md,
+  description: {
+    fontSize: 14,
+    lineHeight: 20,
+    opacity: 0.7,
+    marginBottom: 8,
   },
-  
-  padding_medium: {
-    padding: Spacing.lg,
-  },
-  
-  padding_large: {
-    padding: Spacing.xxl,
+  action: {
+    alignSelf: 'flex-start',
   },
 });
+
+// Export all components
+export {
+  Card,
+  CardHeader,
+  CardContent,
+  CardFooter,
+  CardTitle,
+  CardDescription,
+  CardAction,
+};
+

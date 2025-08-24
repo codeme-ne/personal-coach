@@ -1,11 +1,12 @@
-import { StyleSheet, Text, type TextProps } from 'react-native';
-
-import { useThemeColor } from '@/hooks/useThemeColor';
+import { Text, type TextProps } from 'react-native';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { DesignSystemColors } from '@/constants/Colors';
 
 export type ThemedTextProps = TextProps & {
   lightColor?: string;
   darkColor?: string;
-  type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
+  type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link' | 'muted';
+  className?: string;
 };
 
 export function ThemedText({
@@ -13,19 +14,51 @@ export function ThemedText({
   lightColor,
   darkColor,
   type = 'default',
+  className = '',
   ...rest
 }: ThemedTextProps) {
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  
+  // Determine color based on type and theme
+  let textColor = lightColor || darkColor;
+  if (!textColor) {
+    switch (type) {
+      case 'link':
+        textColor = isDark ? DesignSystemColors.dark.primary : DesignSystemColors.light.primary;
+        break;
+      case 'muted':
+        textColor = isDark ? DesignSystemColors.dark.mutedForeground : DesignSystemColors.light.mutedForeground;
+        break;
+      default:
+        textColor = isDark ? DesignSystemColors.dark.foreground : DesignSystemColors.light.foreground;
+    }
+  }
+
+
+  // Convert type to style object
+  const typeStyle = (() => {
+    switch (type) {
+      case 'title':
+        return { fontSize: 30, fontWeight: 'bold', lineHeight: 36 };
+      case 'subtitle':
+        return { fontSize: 20, fontWeight: 'bold' };
+      case 'defaultSemiBold':
+        return { fontSize: 16, fontWeight: '600', lineHeight: 24 };
+      case 'link':
+        return { fontSize: 16, lineHeight: 32, textDecorationLine: 'underline' };
+      case 'muted':
+        return { fontSize: 14 };
+      default:
+        return { fontSize: 16, lineHeight: 24 };
+    }
+  })();
 
   return (
     <Text
       style={[
-        { color },
-        type === 'default' ? styles.default : undefined,
-        type === 'title' ? styles.title : undefined,
-        type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,
-        type === 'subtitle' ? styles.subtitle : undefined,
-        type === 'link' ? styles.link : undefined,
+        { color: textColor },
+        typeStyle,
         style,
       ]}
       {...rest}
@@ -33,28 +66,3 @@ export function ThemedText({
   );
 }
 
-const styles = StyleSheet.create({
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  defaultSemiBold: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    lineHeight: 32,
-  },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  link: {
-    lineHeight: 30,
-    fontSize: 16,
-    color: '#0a7ea4',
-  },
-});

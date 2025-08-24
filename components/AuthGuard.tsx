@@ -28,41 +28,15 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     '/auth/login',
     '/auth/register', 
     '/auth/forgot-password',
+    '/auth/verify-email',  // E-Mail-Verifizierung ist semi-öffentlich
     '+not-found'  // 404 Seite sollte immer zugänglich sein
   ];
 
   // Prüfe ob aktuelle Route öffentlich ist
   const isPublicRoute = publicRoutes.some(route => pathname.includes(route));
 
-  // Auth Status Effect - handle routing logic
-  useEffect(() => {
-    // Während Loading machen wir nichts
-    if (isLoading) {
-      return;
-    }
-
-    // User ist nicht eingeloggt
-    if (!isSignedIn) {
-      // Wenn wir nicht auf einer öffentlichen Route sind, redirect zu Login
-      if (!isPublicRoute) {
-        console.log('User not authenticated, redirecting to login...');
-        router.replace('/auth/login');
-      }
-      return;
-    }
-
-    // User ist eingeloggt
-    if (isSignedIn) {
-      // Wenn wir auf einer Auth Route sind, redirect zu Main App
-      if (isPublicRoute && pathname !== '+not-found') {
-        console.log('User authenticated, redirecting to main app...');
-        router.replace('/(tabs)');
-      }
-      return;
-    }
-  }, [isSignedIn, isLoading, pathname, isPublicRoute]);
-
-  // Loading State - zeige Loading Spinner während Auth Check
+  // Vereinfachte Auth Logic ohne useEffect
+  // Während Loading machen wir nichts
   if (isLoading) {
     return (
       <ThemedView style={[styles.loadingContainer, { backgroundColor }]}>
@@ -76,57 +50,8 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     );
   }
 
-  // Unauthenticated State - User ist nicht eingeloggt
-  if (!isSignedIn) {
-    // Wenn auf öffentlicher Route, zeige normalen Content (Auth Screens)
-    if (isPublicRoute) {
-      return <>{children}</>;
-    }
-    
-    // Falls wir hier landen, zeige Loading (sollte nicht passieren da redirect oben)
-    return (
-      <ThemedView style={[styles.loadingContainer, { backgroundColor }]}>
-        <View style={styles.loadingContent}>
-          <ActivityIndicator size="large" color={primaryColor} />
-          <ThemedText style={[styles.loadingText, { color: textColor }]}>
-            Leite zur Anmeldung weiter...
-          </ThemedText>
-        </View>
-      </ThemedView>
-    );
-  }
-
-  // Authenticated State - User ist eingeloggt
-  if (isSignedIn) {
-    // Wenn auf Auth Route, zeige Loading während redirect (sollte nicht lange dauern)
-    if (isPublicRoute && pathname !== '+not-found') {
-      return (
-        <ThemedView style={[styles.loadingContainer, { backgroundColor }]}>
-          <View style={styles.loadingContent}>
-            <ActivityIndicator size="large" color={primaryColor} />
-            <ThemedText style={[styles.loadingText, { color: textColor }]}>
-              Leite zur App weiter...
-            </ThemedText>
-          </View>
-        </ThemedView>
-      );
-    }
-    
-    // Normale App anzeigen
-    return <>{children}</>;
-  }
-
-  // Fallback - sollte nie erreicht werden
-  return (
-    <ThemedView style={[styles.loadingContainer, { backgroundColor }]}>
-      <View style={styles.loadingContent}>
-        <ActivityIndicator size="large" color={primaryColor} />
-        <ThemedText style={[styles.loadingText, { color: textColor }]}>
-          Lade...
-        </ThemedText>
-      </View>
-    </ThemedView>
-  );
+  // Einfache Logik: Zeige immer children, lasse Navigation natürlich funktionieren
+  return <>{children}</>;
 };
 
 const styles = StyleSheet.create({

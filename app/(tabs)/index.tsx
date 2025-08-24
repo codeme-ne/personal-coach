@@ -1,12 +1,10 @@
-import { ScrollView, StyleSheet, useColorScheme } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
 import { HabitList } from '@/components/HabitList';
-import { HelloWave } from '@/components/HelloWave';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
 export default function HomeScreen() {
-  const colorScheme = useColorScheme() ?? 'light';
   
   return (
     <ScrollView 
@@ -15,7 +13,6 @@ export default function HomeScreen() {
     >
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Habit Tracker</ThemedText>
-        <HelloWave />
       </ThemedView>
       
       {/* Habit List Component */}
@@ -37,7 +34,6 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     marginBottom: 20,
     backgroundColor: 'transparent',
   },

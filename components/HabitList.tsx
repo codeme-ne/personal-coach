@@ -11,29 +11,46 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  RefreshControl
 } from 'react-native';
-import { Habit, habitService } from '../habitService';
+import { Habit } from '../habitService';
+import { useHabitStore, HabitWithStreak } from '../stores/habitStore';
+import { HabitListItem } from './HabitListItem';
 import { HabitStreakModal } from './HabitStreakModal';
+import { useFeedback } from '../contexts/FeedbackContext';
 import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
 import { Card } from './ui/Card';
 import { IconButton } from './ui/IconButton';
 
-interface HabitWithStreak extends Habit {
-  streak: number;
-  completedToday: boolean;
-}
-
 export function HabitList() {
-  const [habits, setHabits] = useState<HabitWithStreak[]>([]);
+  // Zustand Store für globales State Management
+  const {
+    habits,
+    isLoading,
+    error,
+    loadHabits,
+    addHabitOptimistic,
+    updateHabitOptimistic,
+    deleteHabitOptimistic,
+    toggleHabitCompletionOptimistic,
+    subscribeToHabits,
+    unsubscribeAll,
+    refreshAll
+  } = useHabitStore();
+  
+  // Feedback Hook für Toast-Nachrichten
+  const { showInfo, showError } = useFeedback();
+  
+  // Lokaler State nur für UI-spezifische Dinge
   const [showAddModal, setShowAddModal] = useState(false);
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitDescription, setNewHabitDescription] = useState('');
-  const [loading, setLoading] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [selectedHabitForStreak, setSelectedHabitForStreak] = useState<Habit | null>(null);
   const [showStreakModal, setShowStreakModal] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const colorScheme = useColorScheme();
 
   useEffect(() => {
@@ -51,8 +68,9 @@ export function HabitList() {
         console.log('Reset check failed:', resetError);
       }
       
-      // Load habits after reset check
+      // Initial load und Real-time Subscription aktivieren
       loadHabits();
+      subscribeToHabits();
     };
     
     initializeApp();
@@ -68,211 +86,93 @@ export function HabitList() {
     return () => {
       // Cleanup on unmount
       delete (global as any).showAddHabitModal;
+      unsubscribeAll();
     };
   }, []);
 
-  const loadHabits = async () => {
-    try {
-      setLoading(true);
-      const habitsFromDb = await habitService.getHabits();
-      
-      // Load streak and completion status for each habit
-      const habitsWithData = await Promise.all(
-        habitsFromDb.map(async (habit) => {
-          const streak = await habitService.getHabitStreak(habit.id!);
-          const completedToday = await habitService.isHabitCompletedToday(habit.id!);
-          return { ...habit, streak, completedToday };
-        })
-      );
-      
-      setHabits(habitsWithData);
-    } catch (error) {
-      Alert.alert('Error', 'Could not load habits');
-    } finally {
-      setLoading(false);
-    }
+  // Pull-to-refresh Handler
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshAll();
+    setIsRefreshing(false);
   };
 
   const addHabit = async () => {
     if (!newHabitName.trim()) {
-      Alert.alert('Notice', 'Please enter a habit name');
+      showInfo('Bitte geben Sie einen Namen für die Gewohnheit ein');
       return;
     }
 
     try {
-      setLoading(true);
-      
       if (editingHabit) {
-        // Update existing habit
-        await habitService.updateHabit(editingHabit.id!, {
+        // Update existing habit mit optimistischem Update
+        await updateHabitOptimistic(editingHabit.id!, {
           name: newHabitName.trim(),
           description: newHabitDescription.trim(),
         });
       } else {
-        // Add new habit
-        await habitService.addHabit(newHabitName.trim(), newHabitDescription.trim());
+        // Add new habit mit optimistischem Update
+        await addHabitOptimistic(newHabitName.trim(), newHabitDescription.trim());
       }
       
+      // Modal schließen und Form zurücksetzen
       setNewHabitName('');
       setNewHabitDescription('');
       setShowAddModal(false);
       setEditingHabit(null);
-      
-      // Clear habits first to force re-render, then reload with small delay
-      setHabits([]);
-      setTimeout(async () => {
-        await loadHabits();
-      }, 500);
     } catch (error) {
-      Alert.alert('Error', editingHabit ? 'Could not update habit' : 'Could not add habit');
-    } finally {
-      setLoading(false);
+      showError(editingHabit ? 'Gewohnheit konnte nicht aktualisiert werden' : 'Gewohnheit konnte nicht hinzugefügt werden');
     }
   };
 
   const toggleHabitCompletion = async (habit: HabitWithStreak) => {
-    // Verhindere das Zurücksetzen von bereits abgehakten Gewohnheiten
-    if (habit.completedToday) {
-      return;
-    }
-    
-    try {
-      await habitService.completeHabitForToday(habit.id!);
-      await loadHabits();
-    } catch (error) {
-      Alert.alert('Error', 'Could not update habit');
-    }
+    console.log('Toggle habit completion called for:', habit.name, 'Current state:', habit.completedToday);
+    // Nutze optimistisches Update für sofortiges Feedback
+    await toggleHabitCompletionOptimistic(habit.id!);
+    console.log('Toggle habit completion completed successfully');
+    // Kein Error-Handling mehr - Store behandelt das jetzt graceful
   };
 
   const deleteHabit = async (id: string) => {
-    const performDelete = async () => {
-      try {
-        await habitService.deleteHabit(id);
-        await loadHabits();
-      } catch (error) {
-        const errorMessage = 'Could not delete habit';
-        if (Platform.OS === 'web') {
-          window.alert(errorMessage);
-        } else {
-          Alert.alert('Error', errorMessage);
-        }
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm('Are you sure you want to delete this habit? All history will be lost.');
-      if (confirmed) {
-        await performDelete();
-      }
-    } else {
-      Alert.alert(
-        'Delete Habit',
-        'Are you sure you want to delete this habit? All history will be lost.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: performDelete,
-          },
-        ]
-      );
+    try {
+      // Nutze optimistisches Delete für sofortiges UI-Feedback
+      await deleteHabitOptimistic(id);
+    } catch (error) {
+      showError('Gewohnheit konnte nicht gelöscht werden');
     }
   };
 
-  const editHabit = (habit: Habit) => {
+  const editHabit = (habit: HabitWithStreak) => {
     setEditingHabit(habit);
     setNewHabitName(habit.name);
     setNewHabitDescription(habit.description || '');
     setShowAddModal(true);
   };
+  
+  const showHabitStats = (habit: HabitWithStreak) => {
+    setSelectedHabitForStreak(habit);
+    setShowStreakModal(true);
+  };
 
   const renderHabit = ({ item }: { item: HabitWithStreak }) => (
-    <Card variant="default" style={styles.habitItem}>
-        <TouchableOpacity
-          style={styles.habitContent}
-          onPress={() => toggleHabitCompletion(item)}
-        >
-          {/* Checkmark or square icon based on completion status */}
-          <View style={[
-            styles.iconSquare, 
-            item.completedToday && styles.completedIconSquare
-          ]}>
-            {item.completedToday && (
-              <MaterialIcons name="check" size={24} color="white" />
-            )}
-          </View>
-          
-          <View style={styles.textContainer}>
-            <ThemedText style={[
-              styles.itemTitle,
-              item.completedToday && styles.completedItemTitle
-            ]}>
-              {item.name}
-            </ThemedText>
-            <View style={styles.streakContainer}>
-              <ThemedText style={[
-                styles.itemDescription,
-                item.completedToday && styles.completedItemDescription
-              ]}>
-                {item.completedToday 
-                  ? `✓ Completed today • `
-                  : ''
-                }
-              </ThemedText>
-              {item.streak > 0 && (
-                <View style={styles.streakBadge}>
-                  <MaterialIcons name="local-fire-department" size={16} color="#FF6B35" />
-                  <ThemedText style={styles.streakText}>{item.streak}</ThemedText>
-                </View>
-              )}
-              {item.streak === 0 && (
-                <ThemedText style={[
-                  styles.itemDescription,
-                  item.completedToday && styles.completedItemDescription
-                ]}>
-                  No streak yet
-                </ThemedText>
-              )}
-            </View>
-          </View>
-        </TouchableOpacity>
-        
-        <View style={styles.actions}>
-        <IconButton
-          icon={<MaterialIcons name="bar-chart" size={20} color="#687076" />}
-          size="small"
-          onPress={() => {
-            setSelectedHabitForStreak(item);
-            setShowStreakModal(true);
-          }}
-          accessibilityLabel="View habit statistics"
-        />
-        <IconButton
-          icon={<MaterialIcons name="edit" size={20} color="#687076" />}
-          size="small"
-          onPress={() => editHabit(item)}
-          accessibilityLabel="Edit habit"
-        />
-        <IconButton
-          icon={<MaterialIcons name="delete" size={20} color="#687076" />}
-          size="small"
-          onPress={() => deleteHabit(item.id!)}
-          accessibilityLabel="Delete habit"
-        />
-      </View>
-    </Card>
+    <HabitListItem
+      habit={item}
+      onToggleComplete={toggleHabitCompletion}
+      onEdit={editHabit}
+      onDelete={deleteHabit}
+      onShowStats={showHabitStats}
+    />
   );
 
   return (
     <ThemedView style={styles.container}>
       {/* Removed the header with "My Habits" */}
 
-      {/* Habit List */}
-      {habits.length === 0 && !loading ? (
+      {/* Habit List mit Pull-to-Refresh */}
+      {habits.length === 0 && !isLoading ? (
         <ThemedView style={styles.emptyContainer}>
           <ThemedText style={styles.emptyText}>
-            No habits yet. Add your first habit to get started!
+            Noch keine Gewohnheiten. Fügen Sie Ihre erste Gewohnheit hinzu!
           </ThemedText>
         </ThemedView>
       ) : (
@@ -282,8 +182,14 @@ export function HabitList() {
           keyExtractor={(item) => item.id!}
           style={styles.habitList}
           showsVerticalScrollIndicator={false}
-          refreshing={loading}
-          onRefresh={loadHabits}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors[colorScheme ?? 'light'].tint]}
+              tintColor={Colors[colorScheme ?? 'light'].tint}
+            />
+          }
         />
       )}
 
@@ -297,7 +203,7 @@ export function HabitList() {
         <View style={styles.modalOverlay}>
           <ThemedView style={styles.modalContent}>
             <ThemedText type="subtitle" style={[styles.modalTitle, { color: '#000000' }]}>
-              {editingHabit ? 'Edit Habit' : 'Add New Habit'}
+              {editingHabit ? 'Gewohnheit bearbeiten' : 'Neue Gewohnheit'}
             </ThemedText>
             
             <TextInput
@@ -312,7 +218,7 @@ export function HabitList() {
               nativeID="habit-name-input"
               accessibilityLabel="Habit name"
               accessibilityHint="Enter the name of the habit you want to track"
-              placeholder="Habit name (e.g., Exercise, Read, Meditate)"
+              placeholder="Name der Gewohnheit (z.B. Sport, Lesen, Meditieren)"
               placeholderTextColor="#00000080"
               value={newHabitName}
               onChangeText={setNewHabitName}
@@ -334,7 +240,7 @@ export function HabitList() {
               nativeID="habit-description-input"
               accessibilityLabel="Habit description"
               accessibilityHint="Optional description to provide more details about your habit"
-              placeholder="Description (optional)"
+              placeholder="Beschreibung (optional)"
               placeholderTextColor="#00000080"
               value={newHabitDescription}
               onChangeText={setNewHabitDescription}
@@ -354,7 +260,7 @@ export function HabitList() {
                   setNewHabitDescription('');
                 }}
               >
-                <ThemedText style={{ color: '#000000' }}>Cancel</ThemedText>
+                <ThemedText style={{ color: '#000000' }}>Abbrechen</ThemedText>
               </TouchableOpacity>
               
               <TouchableOpacity
@@ -364,10 +270,10 @@ export function HabitList() {
                   { backgroundColor: Colors[colorScheme ?? 'light'].tint }
                 ]}
                 onPress={addHabit}
-                disabled={loading}
+                disabled={isLoading}
               >
                 <ThemedText style={styles.saveButtonText}>
-                  {loading ? 'Saving...' : editingHabit ? 'Update' : 'Add'}
+                  {isLoading ? 'Speichern...' : editingHabit ? 'Aktualisieren' : 'Hinzufügen'}
                 </ThemedText>
               </TouchableOpacity>
             </ThemedView>

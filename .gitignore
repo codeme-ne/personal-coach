@@ -6,6 +6,7 @@ node_modules/
 # Expo
 .expo/
 dist/
+build/
 web-build/
 expo-env.d.ts
 
@@ -37,4 +38,8 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Next.js build artifacts
+.next/
+
 app-example
+.aider*

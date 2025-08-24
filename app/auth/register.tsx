@@ -5,33 +5,38 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  StyleSheet,
+  TouchableOpacity,
+  Text,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { authService } from '../../authService';
 import { ThemedView } from '../../components/ThemedView';
 import { ThemedText } from '../../components/ThemedText';
-import { useThemeColor } from '../../hooks/useThemeColor';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { useColorScheme } from '../../hooks/useColorScheme';
+import { Colors } from '../../constants/Colors';
 
 export default function RegisterScreen() {
   // Auth Hook für Registration
   const { signUp, isLoading } = useAuth();
   
-  // Theme Colors
-  const backgroundColor = useThemeColor({}, 'background');
-  const textColor = useThemeColor({}, 'text');
-  const cardBackground = useThemeColor({ light: '#f8f9fa', dark: '#1a1a1a' }, 'background');
-  const primaryColor = useThemeColor({ light: '#007AFF', dark: '#0A84FF' }, 'tint');
-  const errorColor = '#FF3B30';
-  const successColor = '#34C759';
+  // Theme
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  
+  // Theme colors
+  const backgroundColor = Colors[colorScheme ?? 'light'].background;
+  const cardBackground = Colors[colorScheme ?? 'light'].background;
+  const textColor = Colors[colorScheme ?? 'light'].text;
+  const primaryColor = Colors[colorScheme ?? 'light'].tint;
+  const errorColor = '#EF4444';
   
   // Form State
   const [formData, setFormData] = useState({
@@ -126,8 +131,9 @@ export default function RegisterScreen() {
       );
       
       if (result.success) {
-        // Registration successful - navigation wird automatisch durch AuthGuard gehandelt
-        console.log('Registration successful');
+        // Registration successful - redirect to email verification
+        console.log('Registration successful, redirecting to email verification');
+        router.replace('/auth/verify-email');
       } else {
         // Show error message
         setErrors({
@@ -164,13 +170,13 @@ export default function RegisterScreen() {
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor }]}
+      style={styles.container}
     >
       <ScrollView 
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
       >
-        <ThemedView style={[styles.card, { backgroundColor: cardBackground }]}>
+        <ThemedView style={styles.card}>
           {/* Header */}
           <View style={styles.header}>
             <ThemedText type="title" style={styles.title}>
@@ -182,151 +188,84 @@ export default function RegisterScreen() {
           </View>
 
           {/* General Error Message */}
-          {errors.general ? (
-            <View style={[styles.errorContainer, { borderColor: errorColor }]}>
-              <Text style={[styles.errorText, { color: errorColor }]}>
+          {errors.general && (
+            <View style={styles.errorContainer}>
+              <ThemedText style={styles.errorText}>
                 {errors.general}
-              </Text>
+              </ThemedText>
             </View>
-          ) : null}
+          )}
 
           {/* Display Name Input (Optional) */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: textColor }]}>
-              Name <Text style={styles.optional}>(optional)</Text>
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                { 
-                  borderColor: errors.displayName ? errorColor : '#ddd',
-                  color: textColor,
-                  backgroundColor: backgroundColor,
-                }
-              ]}
-              placeholder="Ihr Name"
-              placeholderTextColor="#999"
-              value={formData.displayName}
-              onChangeText={(text) => handleInputChange('displayName', text)}
-              autoCapitalize="words"
-              editable={!isSubmitting && !isLoading}
-            />
-            {errors.displayName ? (
-              <Text style={[styles.fieldError, { color: errorColor }]}>
-                {errors.displayName}
-              </Text>
-            ) : null}
-          </View>
+          <Input
+            label="Name (optional)"
+            placeholder="Ihr Name"
+            value={formData.displayName}
+            onChangeText={(text) => handleInputChange('displayName', text)}
+            error={errors.displayName}
+            autoCapitalize="words"
+            disabled={isSubmitting || isLoading}
+          />
 
           {/* Email Input */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: textColor }]}>E-Mail</Text>
-            <TextInput
-              style={[
-                styles.input,
-                { 
-                  borderColor: errors.email ? errorColor : '#ddd',
-                  color: textColor,
-                  backgroundColor: backgroundColor,
-                }
-              ]}
-              placeholder="ihre@email.com"
-              placeholderTextColor="#999"
-              value={formData.email}
-              onChangeText={(text) => handleInputChange('email', text)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isSubmitting && !isLoading}
-            />
-            {errors.email ? (
-              <Text style={[styles.fieldError, { color: errorColor }]}>
-                {errors.email}
-              </Text>
-            ) : null}
-          </View>
+          <Input
+            label="E-Mail"
+            placeholder="ihre@email.com"
+            value={formData.email}
+            onChangeText={(text) => handleInputChange('email', text)}
+            error={errors.email}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            disabled={isSubmitting || isLoading}
+            required
+          />
 
           {/* Password Input */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: textColor }]}>Passwort</Text>
-            <TextInput
-              style={[
-                styles.input,
-                { 
-                  borderColor: errors.password ? errorColor : '#ddd',
-                  color: textColor,
-                  backgroundColor: backgroundColor,
-                }
-              ]}
-              placeholder="Mindestens 6 Zeichen"
-              placeholderTextColor="#999"
-              value={formData.password}
-              onChangeText={(text) => handleInputChange('password', text)}
-              secureTextEntry
-              editable={!isSubmitting && !isLoading}
-            />
-            {errors.password ? (
-              <Text style={[styles.fieldError, { color: errorColor }]}>
-                {errors.password}
-              </Text>
-            ) : null}
-          </View>
+          <Input
+            label="Passwort"
+            placeholder="Mindestens 6 Zeichen"
+            value={formData.password}
+            onChangeText={(text) => handleInputChange('password', text)}
+            error={errors.password}
+            secureTextEntry
+            disabled={isSubmitting || isLoading}
+            required
+          />
 
           {/* Confirm Password Input */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: textColor }]}>Passwort bestätigen</Text>
-            <TextInput
-              style={[
-                styles.input,
-                { 
-                  borderColor: errors.confirmPassword ? errorColor : '#ddd',
-                  color: textColor,
-                  backgroundColor: backgroundColor,
-                }
-              ]}
-              placeholder="Passwort wiederholen"
-              placeholderTextColor="#999"
-              value={formData.confirmPassword}
-              onChangeText={(text) => handleInputChange('confirmPassword', text)}
-              secureTextEntry
-              editable={!isSubmitting && !isLoading}
-            />
-            {errors.confirmPassword ? (
-              <Text style={[styles.fieldError, { color: errorColor }]}>
-                {errors.confirmPassword}
-              </Text>
-            ) : null}
-          </View>
+          <Input
+            label="Passwort bestätigen"
+            placeholder="Passwort wiederholen"
+            value={formData.confirmPassword}
+            onChangeText={(text) => handleInputChange('confirmPassword', text)}
+            error={errors.confirmPassword}
+            secureTextEntry
+            disabled={isSubmitting || isLoading}
+            required
+          />
 
           {/* Register Button */}
-          <TouchableOpacity
-            style={[
-              styles.registerButton,
-              { backgroundColor: primaryColor },
-              (isSubmitting || isLoading) && styles.disabledButton
-            ]}
+          <Button
             onPress={handleRegister}
             disabled={isSubmitting || isLoading}
+            style={styles.registerButton}
           >
-            {isSubmitting || isLoading ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <Text style={styles.registerButtonText}>Registrieren</Text>
-            )}
-          </TouchableOpacity>
+            {isSubmitting || isLoading ? 'Registriere...' : 'Registrieren'}
+          </Button>
 
           {/* Login Link */}
           <View style={styles.loginContainer}>
-            <Text style={[styles.loginText, { color: textColor }]}>
+            <ThemedText style={styles.loginText}>
               Bereits ein Konto?{' '}
-            </Text>
+            </ThemedText>
             <TouchableOpacity 
               onPress={navigateToLogin}
               disabled={isSubmitting || isLoading}
             >
-              <Text style={[styles.loginLink, { color: primaryColor }]}>
+              <ThemedText style={[styles.loginLink, { color: primaryColor }]}>
                 Anmelden
-              </Text>
+              </ThemedText>
             </TouchableOpacity>
           </View>
         </ThemedView>
@@ -338,6 +277,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F7F8F9',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -345,7 +285,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   card: {
-    borderRadius: 12,
+    backgroundColor: 'white',
+    borderRadius: 16,
     padding: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -354,70 +295,36 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   header: {
-    marginBottom: 32,
     alignItems: 'center',
+    marginBottom: 32,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 8,
-    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
     opacity: 0.7,
+    lineHeight: 22,
   },
   errorContainer: {
-    backgroundColor: '#FFF5F5',
-    borderWidth: 1,
+    backgroundColor: '#FEF2F2',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 20,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
   },
   errorText: {
+    color: '#EF4444',
     fontSize: 14,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  optional: {
-    fontWeight: '400',
-    opacity: 0.6,
-    fontSize: 14,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 14,
-    fontSize: 16,
-  },
-  fieldError: {
-    fontSize: 14,
-    marginTop: 4,
     fontWeight: '500',
   },
   registerButton: {
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginBottom: 24,
     marginTop: 8,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  registerButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    marginBottom: 24,
   },
   loginContainer: {
     flexDirection: 'row',
@@ -432,3 +339,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

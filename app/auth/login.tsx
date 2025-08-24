@@ -5,32 +5,35 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  StyleSheet,
+  TouchableOpacity,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
+import { useFeedback } from '../../contexts/FeedbackContext';
 import { ThemedView } from '../../components/ThemedView';
 import { ThemedText } from '../../components/ThemedText';
-import { useThemeColor } from '../../hooks/useThemeColor';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { useColorScheme } from '../../hooks/useColorScheme';
+import { Colors } from '../../constants/Colors';
 
 export default function LoginScreen() {
   // Auth Hook für Login Funktionalität
   const { signIn, isLoading } = useAuth();
   
-  // Theme Colors
-  const backgroundColor = useThemeColor({}, 'background');
-  const textColor = useThemeColor({}, 'text');
-  const cardBackground = useThemeColor({ light: '#f8f9fa', dark: '#1a1a1a' }, 'background');
-  const primaryColor = useThemeColor({ light: '#007AFF', dark: '#0A84FF' }, 'tint');
-  const errorColor = '#FF3B30';
+  // Feedback Hook für Toast-Nachrichten
+  const { showSuccess, showError } = useFeedback();
+  
+  // Theme
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  
+  // Theme colors
+  const primaryColor = Colors[colorScheme ?? 'light'].tint;
   
   // Form State
   const [formData, setFormData] = useState({
@@ -88,20 +91,25 @@ export default function LoginScreen() {
       const result = await signIn(formData.email.trim(), formData.password);
       
       if (result.success) {
-        // Login successful - navigation wird automatisch durch AuthGuard gehandelt
-        console.log('Login successful');
+        // Login successful - redirect to main app
+        showSuccess('Erfolgreich angemeldet! Willkommen zurück.');
+        router.replace('/(tabs)');
       } else {
-        // Show error message
+        // Show error message als Toast
+        const errorMsg = result.error?.message || 'Anmeldung fehlgeschlagen';
+        showError(errorMsg);
         setErrors({
           ...errors,
-          general: result.error?.message || 'Anmeldung fehlgeschlagen',
+          general: errorMsg,
         });
       }
     } catch (error) {
       console.error('Login error:', error);
+      const errorMsg = 'Ein unerwarteter Fehler ist aufgetreten';
+      showError(errorMsg);
       setErrors({
         ...errors,
-        general: 'Ein unerwarteter Fehler ist aufgetreten',
+        general: errorMsg,
       });
     } finally {
       setIsSubmitting(false);
@@ -131,13 +139,13 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor }]}
+      style={styles.container}
     >
       <ScrollView 
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
       >
-        <ThemedView style={[styles.card, { backgroundColor: cardBackground }]}>
+        <ThemedView style={styles.card}>
           {/* Header */}
           <View style={styles.header}>
             <ThemedText type="title" style={styles.title}>
@@ -149,108 +157,73 @@ export default function LoginScreen() {
           </View>
 
           {/* General Error Message */}
-          {errors.general ? (
-            <View style={[styles.errorContainer, { borderColor: errorColor }]}>
-              <Text style={[styles.errorText, { color: errorColor }]}>
+          {errors.general && (
+            <View style={styles.errorContainer}>
+              <ThemedText style={styles.errorText}>
                 {errors.general}
-              </Text>
+              </ThemedText>
             </View>
-          ) : null}
+          )}
 
           {/* Email Input */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: textColor }]}>E-Mail</Text>
-            <TextInput
-              style={[
-                styles.input,
-                { 
-                  borderColor: errors.email ? errorColor : '#ddd',
-                  color: textColor,
-                  backgroundColor: backgroundColor,
-                }
-              ]}
-              placeholder="ihre@email.com"
-              placeholderTextColor="#999"
-              value={formData.email}
-              onChangeText={(text) => handleInputChange('email', text)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isSubmitting && !isLoading}
-            />
-            {errors.email ? (
-              <Text style={[styles.fieldError, { color: errorColor }]}>
-                {errors.email}
-              </Text>
-            ) : null}
-          </View>
+          <Input
+            label="E-Mail"
+            placeholder="ihre@email.com"
+            value={formData.email}
+            onChangeText={(text) => handleInputChange('email', text)}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            disabled={isSubmitting || isLoading}
+            error={errors.email}
+            required
+          />
 
           {/* Password Input */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: textColor }]}>Passwort</Text>
-            <TextInput
-              style={[
-                styles.input,
-                { 
-                  borderColor: errors.password ? errorColor : '#ddd',
-                  color: textColor,
-                  backgroundColor: backgroundColor,
-                }
-              ]}
-              placeholder="Ihr Passwort"
-              placeholderTextColor="#999"
-              value={formData.password}
-              onChangeText={(text) => handleInputChange('password', text)}
-              secureTextEntry
-              editable={!isSubmitting && !isLoading}
-            />
-            {errors.password ? (
-              <Text style={[styles.fieldError, { color: errorColor }]}>
-                {errors.password}
-              </Text>
-            ) : null}
-          </View>
+          <Input
+            label="Passwort"
+            placeholder="Ihr Passwort"
+            value={formData.password}
+            onChangeText={(text) => handleInputChange('password', text)}
+            secureTextEntry
+            disabled={isSubmitting || isLoading}
+            error={errors.password}
+            required
+          />
 
           {/* Forgot Password Link */}
-          <TouchableOpacity 
-            onPress={navigateToForgotPassword}
-            style={styles.forgotPasswordContainer}
-            disabled={isSubmitting || isLoading}
-          >
-            <Text style={[styles.forgotPasswordText, { color: primaryColor }]}>
-              Passwort vergessen?
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.forgotPasswordContainer}>
+            <TouchableOpacity 
+              onPress={navigateToForgotPassword}
+              disabled={isSubmitting || isLoading}
+            >
+              <ThemedText style={[styles.forgotPasswordLink, { color: primaryColor }]}>
+                Passwort vergessen?
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
 
           {/* Login Button */}
-          <TouchableOpacity
-            style={[
-              styles.loginButton,
-              { backgroundColor: primaryColor },
-              (isSubmitting || isLoading) && styles.disabledButton
-            ]}
+          <Button
             onPress={handleLogin}
             disabled={isSubmitting || isLoading}
+            style={styles.loginButton}
           >
-            {isSubmitting || isLoading ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <Text style={styles.loginButtonText}>Anmelden</Text>
-            )}
-          </TouchableOpacity>
+            {isSubmitting || isLoading ? 'Anmeldung...' : 'Anmelden'}
+          </Button>
 
           {/* Register Link */}
           <View style={styles.registerContainer}>
-            <Text style={[styles.registerText, { color: textColor }]}>
+            <ThemedText style={styles.registerText}>
               Noch kein Konto?{' '}
-            </Text>
+            </ThemedText>
             <TouchableOpacity 
               onPress={navigateToRegister}
               disabled={isSubmitting || isLoading}
             >
-              <Text style={[styles.registerLink, { color: primaryColor }]}>
+              <ThemedText style={[styles.registerLink, { color: primaryColor }]}>
                 Registrieren
-              </Text>
+              </ThemedText>
             </TouchableOpacity>
           </View>
         </ThemedView>
@@ -262,6 +235,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F7F8F9',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -269,7 +243,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   card: {
-    borderRadius: 12,
+    backgroundColor: 'white',
+    borderRadius: 16,
     padding: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -278,72 +253,43 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   header: {
-    marginBottom: 32,
     alignItems: 'center',
+    marginBottom: 32,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 8,
-    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
     opacity: 0.7,
+    lineHeight: 22,
   },
   errorContainer: {
-    backgroundColor: '#FFF5F5',
-    borderWidth: 1,
+    backgroundColor: '#FEF2F2',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 20,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
   },
   errorText: {
+    color: '#EF4444',
     fontSize: 14,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 14,
-    fontSize: 16,
-  },
-  fieldError: {
-    fontSize: 14,
-    marginTop: 4,
     fontWeight: '500',
   },
   forgotPasswordContainer: {
     alignItems: 'flex-end',
     marginBottom: 24,
   },
-  forgotPasswordText: {
+  forgotPasswordLink: {
     fontSize: 14,
     fontWeight: '500',
   },
   loginButton: {
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
     marginBottom: 24,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  loginButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
   registerContainer: {
     flexDirection: 'row',
@@ -358,3 +304,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

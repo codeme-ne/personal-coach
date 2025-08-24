@@ -1,48 +1,109 @@
 // === IconButton Component ===
-// Zweck: Icon-only Button für Edit, Delete, History Actions
-// Features: 44pt Touch Target, Theme Support, Accessibility
+// Zweck: Icon-only Button mit NativeWind und Design System
+// Features: 44pt Touch Target, Modern Variants, Accessibility
 
 import React from 'react';
 import {
   TouchableOpacity,
-  StyleSheet,
   type TouchableOpacityProps,
 } from 'react-native';
 
-import { useThemeColor } from '@/hooks/useThemeColor';
-import { BorderRadius, Spacing } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { DesignSystemColors } from '@/constants/Colors';
 
 export type IconButtonProps = TouchableOpacityProps & {
   icon: React.ReactNode;
-  variant?: 'default' | 'danger' | 'success';
-  size?: 'small' | 'medium' | 'large';
+  variant?: 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+  size?: 'sm' | 'default' | 'lg';
   accessibilityLabel: string;
   accessibilityHint?: string;
+  className?: string;
 };
 
 export function IconButton({
   icon,
   variant = 'default',
-  size = 'medium',
+  size = 'default',
   accessibilityLabel,
   accessibilityHint,
+  className = '',
   style,
   disabled,
   ...rest
 }: IconButtonProps) {
-  const backgroundColor = useThemeColor({}, getBackgroundColor(variant) as any);
-  
-  const buttonStyle = [
-    styles.base,
-    styles[size],
-    variant !== 'default' && { backgroundColor },
-    disabled && styles.disabled,
-    style,
-  ];
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  // Get colors based on variant and theme
+  const getButtonColors = () => {
+    switch (variant) {
+      case 'secondary':
+        return {
+          backgroundColor: isDark ? DesignSystemColors.dark.secondary : DesignSystemColors.light.secondary,
+        };
+      case 'outline':
+        return {
+          backgroundColor: 'transparent',
+        };
+      case 'ghost':
+        return {
+          backgroundColor: 'transparent',
+        };
+      case 'destructive':
+        return {
+          backgroundColor: isDark ? DesignSystemColors.dark.destructive : DesignSystemColors.light.destructive,
+        };
+      default:
+        return {
+          backgroundColor: 'transparent',
+        };
+    }
+  };
+
+  // Get size classes
+  const getSizeClasses = () => {
+    switch (size) {
+      case 'sm':
+        return 'w-8 h-8 p-1';
+      case 'lg':
+        return 'w-12 h-12 p-3';
+      default:
+        return 'w-10 h-10 p-2';
+    }
+  };
+
+  // Get variant classes
+  const getVariantClasses = () => {
+    switch (variant) {
+      case 'secondary':
+        return 'rounded-md shadow-sm';
+      case 'outline':
+        return 'rounded-md border border-input';
+      case 'ghost':
+        return 'rounded-md hover:bg-accent';
+      case 'destructive':
+        return 'rounded-md shadow-sm';
+      default:
+        return 'rounded-md';
+    }
+  };
+
+  const colors = getButtonColors();
+  const combinedClassName = `
+    flex items-center justify-center min-w-[44px] min-h-[44px]
+    ${getSizeClasses()}
+    ${getVariantClasses()}
+    ${disabled ? 'opacity-60' : ''}
+    ${className}
+  `.trim().replace(/\s+/g, ' ');
 
   return (
     <TouchableOpacity
-      style={buttonStyle}
+      className={combinedClassName}
+      style={[
+        { backgroundColor: colors.backgroundColor },
+        style,
+      ]}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
@@ -55,45 +116,3 @@ export function IconButton({
   );
 }
 
-function getBackgroundColor(variant: string): string {
-  switch (variant) {
-    case 'danger':
-      return 'error';
-    case 'success':
-      return 'success';
-    case 'default':
-    default:
-      return 'transparent';
-  }
-}
-
-const styles = StyleSheet.create({
-  base: {
-    borderRadius: BorderRadius.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 44,  // iOS touch target minimum
-    minHeight: 44,
-  },
-  
-  // Size variants
-  small: {
-    padding: Spacing.xs,
-    minWidth: 36,
-    minHeight: 36,
-  },
-  medium: {
-    padding: Spacing.sm,
-    minWidth: 44,
-    minHeight: 44,
-  },
-  large: {
-    padding: Spacing.md,
-    minWidth: 52,
-    minHeight: 52,
-  },
-  
-  disabled: {
-    opacity: 0.6,
-  },
-});
