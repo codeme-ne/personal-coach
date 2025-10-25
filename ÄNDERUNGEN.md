@@ -9,6 +9,83 @@ Umfassende Refactoring- und Feature-Implementierung zur Optimierung der "Persona
 
 ---
 
+## 🔧 PR 3: Polish & Resilience (Aktuell)
+
+### KI-System Verbesserungen
+
+#### **Prompt-Extraktion und Modularisierung**
+- **Neues Modul**: `/firebase/functions/src/prompts.ts`
+  - Zentralisierte Prompt-Verwaltung
+  - `buildSystemPrompt(context)` Funktion mit konfigurierbarer History-Länge
+  - Mehrsprachige Prompts (Deutsch/Englisch)
+  - Few-Shot Beispiele für zukünftige Erweiterungen
+
+#### **Resiliente Together API Integration**
+- **Neues Modul**: `/firebase/functions/src/togetherAPI.ts`
+  - Exponential Backoff mit Jitter (500ms, 1200ms, 2500ms ±25%)
+  - Retry-Logik für HTTP 429 und 5xx Fehler (bis zu 3 Versuche)
+  - Strukturiertes Logging mit Request-ID, Model, Versuch, Status
+  - Firebase Error-Mapping:
+    - `resource-exhausted` für 429 (Rate Limit)
+    - `unavailable` für 502/503/504 (Temporäre Ausfälle)
+    - `invalid-argument` für Validierungsfehler
+    - `permission-denied` für Auth-Fehler
+
+#### **Konfiguration**
+- **Umgebungsvariable**: `TOGETHER_HISTORY_TURNS` (Standard: 6)
+  - Begrenzt Chat-History für Together API Anfragen
+  - Reduziert Token-Verbrauch und verbessert Performance
+
+### UI-Verbesserungen
+
+#### **Cloud/Fallback Status-Indikator**
+- **Chat Screen (`app/chat-coach.tsx`)**:
+  - Subtiler Status-Badge im Header
+  - "AI: Cloud" (grün) bei erfolgreicher API-Antwort
+  - "AI: Fallback" (orange) bei lokaler Simulation
+  - Versteckt bei unbekanntem Status
+  - Barrierefrei und nicht störend
+
+#### **Response Source Tracking**
+- **Chat Service (`chatCoachService.ts`)**:
+  - `lastSource` Tracking ('cloud' | 'fallback' | 'unknown')
+  - `getLastResponseSource()` Methode
+  - Automatische Update nach jeder KI-Antwort
+
+### Technische Details
+
+#### **Firebase Functions Aktualisierungen**
+- `/firebase/functions/index.ts`:
+  - Import von `buildSystemPrompt` aus prompts.ts
+  - Import von `ResilientTogetherAPI` aus togetherAPI.ts
+  - Entfernung der inline Prompt-Logik
+  - Integration des neuen API-Wrappers mit Fallback
+
+#### **Retry/Backoff Strategie**
+```typescript
+// Delay-Berechnung mit Jitter
+const baseDelays = [500, 1200, 2500]; // ms
+const jitter = ±25%
+// Retry bei: 429, 502, 503, 504
+// Max. 3 Versuche pro Anfrage
+```
+
+#### **Logging Format**
+```typescript
+{
+  requestId: "req_1234567890_abc123",
+  model: "meta-llama/Llama-2-7b-chat-hf",
+  attempt: 2,
+  maxAttempts: 3,
+  promptLength: 1450,
+  promptPreview: "Du bist ein einfühlsamer...",
+  status: 200,
+  timestamp: "2025-08-24T17:00:00Z"
+}
+```
+
+---
+
 ## 📦 Neue Dependencies
 
 ```json

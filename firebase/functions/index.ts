@@ -4,6 +4,8 @@
 
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { buildSystemPrompt } from './prompts';
+import { ResilientTogetherAPI } from './togetherAPI';
 
 // Initialize Firebase Admin
 if (!admin.apps.length) {
@@ -11,6 +13,10 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
+
+// Environment configuration
+const TOGETHER_HISTORY_TURNS = parseInt(process.env.TOGETHER_HISTORY_TURNS || '6');
+const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY;
 
 // === Interfaces ===
 interface ChatMessage {
@@ -113,74 +119,33 @@ async function getUserContext(userId: string): Promise<UserContext> {
   }
 }
 
+// Prompt creation is now handled by the prompts module
+
 /**
- * Erstellt einen detaillierten Prompt für Claude 3.5 Sonnet
+ * Ruft KI API mit resilientem Together.ai Client auf
  */
-function createPrompt(
-  userMessage: string,
-  userContext: UserContext,
-  chatHistory: ChatMessage[],
-  language: string = 'de'
-): string {
-  const systemPrompt = language === 'de' ? `
-Du bist ein einfühlsamer, motivierender persönlicher Coach in der "Personal Coach" App.
-Deine Aufgabe ist es, Nutzer bei der Entwicklung und Aufrechterhaltung positiver Gewohnheiten zu unterstützen.
+async function callAIAPI(prompt: string): Promise<string> {
+  if (!TOGETHER_API_KEY) {
+    // Fallback auf simulierte Antworten wenn kein API Key verfügbar
+    return await callClaudeAPI(prompt);
+  }
 
-WICHTIGE RICHTLINIEN:
-- Sei warmherzig, unterstützend und ermutigend
-- Gib konkrete, umsetzbare Ratschläge
-- Beziehe dich auf die spezifischen Daten des Nutzers
-- Verwende eine positive, lösungsorientierte Sprache
-- Halte Antworten prägnant (max. 3-4 Sätze, außer bei komplexen Fragen)
-- Nutze gelegentlich Emojis für Motivation (💪, 🎯, ⭐, 🔥)
-
-NUTZER-KONTEXT:
-- Anzahl Gewohnheiten: ${userContext.totalHabits}
-- Heute abgeschlossen: ${userContext.completedToday} (${userContext.progressPercentage}%)
-- Längste Serie: ${userContext.longestStreak} Tage
-- Top-Gewohnheiten: ${userContext.topHabits.map(h => `${h.name} (${h.streak} Tage)`).join(', ') || 'Noch keine'}
-- Status: ${userContext.recentActivity}
-
-CHAT-VERLAUF:
-${chatHistory.slice(-5).map(msg => `${msg.role === 'user' ? 'Nutzer' : 'Coach'}: ${msg.content}`).join('\n')}
-
-Aktuelle Nachricht des Nutzers: ${userMessage}
-
-Antworte auf Deutsch, es sei denn, der Nutzer verwendet Englisch.
-` : `
-You are an empathetic, motivating personal coach in the "Personal Coach" app.
-Your task is to support users in developing and maintaining positive habits.
-
-IMPORTANT GUIDELINES:
-- Be warm, supportive, and encouraging
-- Give specific, actionable advice
-- Reference the user's specific data
-- Use positive, solution-oriented language
-- Keep responses concise (max. 3-4 sentences unless complex questions)
-- Occasionally use emojis for motivation (💪, 🎯, ⭐, 🔥)
-
-USER CONTEXT:
-- Number of habits: ${userContext.totalHabits}
-- Completed today: ${userContext.completedToday} (${userContext.progressPercentage}%)
-- Longest streak: ${userContext.longestStreak} days
-- Top habits: ${userContext.topHabits.map(h => `${h.name} (${h.streak} days)`).join(', ') || 'None yet'}
-- Status: ${userContext.recentActivity}
-
-CHAT HISTORY:
-${chatHistory.slice(-5).map(msg => `${msg.role === 'user' ? 'User' : 'Coach'}: ${msg.content}`).join('\n')}
-
-Current user message: ${userMessage}
-
-Respond in English.
-`;
-
-  return systemPrompt;
+  try {
+    const togetherAPI = new ResilientTogetherAPI(TOGETHER_API_KEY);
+    const response = await togetherAPI.call(prompt, {
+      model: 'meta-llama/Llama-2-7b-chat-hf',
+      max_tokens: 200,
+      temperature: 0.7,
+      top_p: 0.9
+    });
+    
+    return response;
+  } catch (error) {
+    console.error('Together API failed, falling back to simulation:', error);
+    // Fallback auf simulierte Antworten
+    return await callClaudeAPI(prompt);
+  }
 }
-
-/**
- * Simuliert einen Claude 3.5 Sonnet API Call
- * In Produktion würde hier die echte Anthropic API aufgerufen
- */
 async function callClaudeAPI(prompt: string): Promise<string> {
   // Simulierte KI-Antwort basierend auf dem Kontext
   // In Produktion: Echter API Call zu Anthropic
@@ -269,16 +234,17 @@ export const getChatResponse = functions
       // Lade Nutzerkontext
       const userContext = await getUserContext(userId);
       
-      // Erstelle Prompt
-      const prompt = createPrompt(
-        data.message,
+      // Erstelle Prompt mit neuem Prompts-Modul
+      const prompt = buildSystemPrompt({
+        userMessage: data.message,
         userContext,
-        data.chatHistory || [],
-        data.language || 'de'
-      );
+        chatHistory: data.chatHistory || [],
+        language: data.language || 'de',
+        historyTurns: TOGETHER_HISTORY_TURNS
+      });
       
-      // Rufe KI API auf (simuliert)
-      const response = await callClaudeAPI(prompt);
+      // Rufe KI API auf mit resilientem Wrapper
+      const response = await callAIAPI(prompt);
       
       // Log für Analytics (optional)
       await db.collection('chat_logs').add({

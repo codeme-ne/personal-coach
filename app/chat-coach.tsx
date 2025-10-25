@@ -44,6 +44,7 @@ export default function ChatCoachScreen() {
   const [isTyping, setIsTyping] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [responseSource, setResponseSource] = useState<'cloud' | 'fallback' | 'unknown'>('unknown');
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
 
@@ -124,6 +125,10 @@ export default function ChatCoachScreen() {
       const welcomeResponse = await chatCoachService.generateResponse(
         `Hallo! (Nutzer hat ${habits.length} Gewohnheiten und ${progressPercentage}% heute geschafft)`
       );
+      
+      // Update response source after getting welcome response
+      const source = chatCoachService.getLastResponseSource();
+      setResponseSource(source);
       
       const welcomeMessage = {
         id: Date.now().toString(),
@@ -208,6 +213,10 @@ export default function ChatCoachScreen() {
         allMessages
       );
       
+      // Update response source after getting response
+      const source = chatCoachService.getLastResponseSource();
+      setResponseSource(source);
+      
       const botMessage: ChatMessage = {
         id: `${Date.now() + 1}`,
         text: botResponse,
@@ -290,6 +299,10 @@ export default function ChatCoachScreen() {
               const welcomeResponse = await chatCoachService.generateResponse(
                 `Hallo! Neuer Chat gestartet. (${habits.length} Gewohnheiten, ${progressPercentage}% heute)`
               );
+              
+              // Update response source after getting welcome response
+              const source = chatCoachService.getLastResponseSource();
+              setResponseSource(source);
               
               const welcomeMessage = {
                 id: Date.now().toString(),
@@ -416,7 +429,19 @@ export default function ChatCoachScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <ThemedText style={styles.headerTitle}>ChatCoach</ThemedText>
+        <View style={styles.headerCenter}>
+          <ThemedText style={styles.headerTitle}>ChatCoach</ThemedText>
+          {responseSource !== 'unknown' && (
+            <View style={[
+              styles.statusIndicator, 
+              { backgroundColor: responseSource === 'cloud' ? '#10B981' : '#F59E0B' }
+            ]}>
+              <ThemedText style={styles.statusText}>
+                AI: {responseSource === 'cloud' ? 'Cloud' : 'Fallback'}
+              </ThemedText>
+            </View>
+          )}
+        </View>
         <TouchableOpacity onPress={clearChatHistory} style={styles.headerRight}>
           <MaterialIcons name="delete-outline" size={22} color="white" />
         </TouchableOpacity>
@@ -494,12 +519,26 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 4,
   },
-  headerTitle: {
+  headerCenter: {
     flex: 1,
+    alignItems: 'center',
+  },
+  headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
     textAlign: 'center',
+  },
+  statusIndicator: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'white',
   },
   headerRight: {
     padding: 4,

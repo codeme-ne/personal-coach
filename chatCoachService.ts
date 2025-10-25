@@ -57,6 +57,7 @@ export class ChatCoachService {
   private chatHistory: ChatMessage[] = [];
   private userProfile: UserProfile | null = null;
   private maxHistoryLength = 50; // Mehr History für besseren Kontext
+  private lastSource: 'cloud' | 'fallback' | 'unknown' = 'unknown'; // Track response source
   
   private constructor() {}
   
@@ -170,6 +171,7 @@ export class ChatCoachService {
       try {
         const aiResponse = await this.callAIAPI(userMessage, context, profile);
         if (aiResponse) {
+          this.lastSource = 'cloud'; // Track that response came from cloud API
           return aiResponse;
         }
       } catch (error) {
@@ -178,6 +180,7 @@ export class ChatCoachService {
     }
     
     // Intelligenter Fallback mit deutlich verbesserter Logik
+    this.lastSource = 'fallback'; // Track that response came from fallback
     return this.generateIntelligentFallback(userMessage, context, profile);
   }
 
@@ -783,6 +786,15 @@ Antworte als persönlicher Coach "Alex", der seinen Klienten wirklich kennt!`;
   
   public clearHistory(): void {
     this.chatHistory = [];
+  }
+
+  // === Response Source Tracking ===
+  
+  /**
+   * Gibt die Quelle der letzten KI-Antwort zurück
+   */
+  public getLastResponseSource(): 'cloud' | 'fallback' | 'unknown' {
+    return this.lastSource;
   }
 
   // === API Management ===
